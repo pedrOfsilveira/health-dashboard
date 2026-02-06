@@ -451,18 +451,26 @@
             input.value = '';
 
             try {
-                const payload = { date, text };
-                // Usando a URL do localtunnel que aponta para o api_server.py
-                const res = await fetch(`https://saude-pedro.loca.lt/log_entry?data=${encodeURIComponent(JSON.stringify(payload))}`);
+                const payload = { 
+                    date: date, 
+                    text: text,
+                    status: 'received'
+                };
                 
-                if (res.ok) {
+                const { data, error } = await supabaseClient
+                    .from('chat_logs')
+                    .insert([payload])
+                    .select();
+                
+                if (!error) {
                     addMessage("Alfred recebeu sua mensagem e está processando...", 'bot', 'status-msg');
                 } else {
+                    console.error("Erro Supabase:", error);
                     addMessage("Erro ao enviar para o Alfred. Tentando novamente...", 'bot');
                 }
             } catch (e) {
-                console.error("Erro no fetch:", e);
-                addMessage("Servidor offline. O registro será processado assim que possível.", 'bot');
+                console.error("Erro no envio:", e);
+                addMessage("Servidor instável. Tentando processar em background...", 'bot');
             }
         }
 
