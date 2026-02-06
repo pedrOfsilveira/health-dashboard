@@ -12,6 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { 
             --p-color: #10b981;
@@ -425,6 +426,7 @@
 
         const SUPABASE_URL = "https://cjlowdjmqdsgigstagoi.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqbG93ZGptcWRzZ2lnc3RhZ29pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDM0NzQxMSwiZXhwIjoyMDg1OTIzNDExfQ.D1kfCPgH5Hlw9Mkxj9b74XnHFRG5HIFh1gOftpqB_g0";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         function toggleChat() {
             const modal = document.getElementById('chatModal');
@@ -449,25 +451,63 @@
             input.value = '';
 
             try {
-                const payload = { date, text, timestamp: new Date().toISOString() };
-                // Webhook or Edge Function URL could go here. For now using local log relay
-                fetch(`https://saude-pedro.loca.lt/log_entry?data=${encodeURIComponent(JSON.stringify(payload))}`).catch(() => {});
+                const payload = { date, text };
+                // Usando a URL do localtunnel que aponta para o api_server.py
+                const res = await fetch(`https://saude-pedro.loca.lt/log_entry?data=${encodeURIComponent(JSON.stringify(payload))}`);
                 
-                setTimeout(() => {
-                    addMessage("Entendido, Pedro. Vou processar esse registro para o dia " + date + ". O dashboard será atualizado em breve.", 'bot');
-                }, 600);
+                if (res.ok) {
+                    addMessage("Alfred recebeu sua mensagem e está processando...", 'bot', 'status-msg');
+                } else {
+                    addMessage("Erro ao enviar para o Alfred. Tentando novamente...", 'bot');
+                }
             } catch (e) {
-                addMessage("Registro enviado com sucesso!", 'bot');
+                console.error("Erro no fetch:", e);
+                addMessage("Servidor offline. O registro será processado assim que possível.", 'bot');
             }
         }
 
-        function addMessage(text, side) {
+        function addMessage(text, side, extraClass = '') {
             const container = document.getElementById('chatMessages');
             const div = document.createElement('div');
-            div.className = `msg msg-${side}`;
+            div.className = `msg msg-${side} ${extraClass}`;
             div.innerText = text;
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
+            return div;
+        }
+
+        function subscribeToLogs() {
+            supabaseClient
+                .channel('schema-db-changes')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'chat_logs' },
+                    (payload) => {
+                        console.log('Chat log change:', payload);
+                        if (payload.eventType === 'INSERT') {
+                            // Opcional: mostrar que algo novo foi recebido se não foi o próprio user
+                        } else if (payload.eventType === 'UPDATE') {
+                            const { status, response, text } = payload.new;
+                            if (status === 'processing') {
+                                addMessage("🤖 Alfred: Decompondo macros para '" + text + "'...", 'bot', 'text-[10px] italic opacity-70');
+                            } else if (status === 'completed') {
+                                addMessage("✅ Alfred: Registro concluído! Atualizando seu dashboard...", 'bot', 'font-bold text-emerald-600');
+                                loadData(); // Atualiza os dados instantaneamente
+                            }
+                        }
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'days' },
+                    () => loadData()
+                )
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'meals' },
+                    () => loadData()
+                )
+                .subscribe();
         }
 
         async function loadData() {
@@ -806,6 +846,7 @@
 
         window.onload = () => {
             loadData();
+            subscribeToLogs();
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('./sw.js')
                     .then(() => console.log('Service Worker registrado!'))
