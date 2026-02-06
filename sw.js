@@ -1,11 +1,12 @@
-const CACHE_NAME = 'bio-tracker-v2';
+const CACHE_NAME = 'bio-tracker-v3';
 const STATIC_ASSETS = [
-  './index.html',
-  './manifest.json',
-  './public/icon-192.png',
-  './public/icon-512.png',
-  './public/icon-maskable-512.png',
-  './public/apple-touch-icon.png'
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/public/icon-192.png',
+  '/public/icon-512.png',
+  '/public/icon-maskable-512.png',
+  '/public/apple-touch-icon.png'
 ];
 
 // CDN assets to precache for offline
@@ -70,7 +71,7 @@ self.addEventListener('fetch', (event) => {
     }).catch(() => {
       // Offline fallback for navigation
       if (event.request.mode === 'navigate') {
-        return caches.match('./index.html');
+        return caches.match('/index.html');
       }
     })
   );

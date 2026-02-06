@@ -2,8 +2,8 @@
   "name": "Bio-Tracker Pedro",
   "short_name": "BioTracker",
   "description": "Dashboard de Saúde e Nutrição do Pedro",
-  "start_url": "./index.html",
-  "scope": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f172a",
@@ -11,19 +11,19 @@
   "categories": ["health", "fitness", "lifestyle"],
   "icons": [
     {
-      "src": "public/icon-192.png",
+      "src": "/public/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "public/icon-512.png",
+      "src": "/public/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "public/icon-maskable-512.png",
+      "src": "/public/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
