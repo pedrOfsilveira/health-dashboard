@@ -399,28 +399,19 @@
                 <!-- Macros Row -->
                 <div class="grid grid-cols-3 gap-4">
                     <div class="bg-slate-50 rounded-2xl p-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Proteína</p>
-                            <p class="text-[10px] font-black text-emerald-500" id="pct-protein">0%</p>
-                        </div>
+                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">PTN</p>
                         <p class="text-lg font-black text-slate-800 leading-tight" id="total-protein">0</p>
                         <p class="text-[10px] font-bold text-slate-400 mt-0.5">/ <span id="meta-protein">124</span>g</p>
                         <progress id="progress-protein" class="progress progress-success w-full h-1.5 mt-2" value="0" max="100"></progress>
                     </div>
                     <div class="bg-slate-50 rounded-2xl p-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Carbs</p>
-                            <p class="text-[10px] font-black text-amber-500" id="pct-carb">0%</p>
-                        </div>
+                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">CHO</p>
                         <p class="text-lg font-black text-slate-800 leading-tight" id="total-carb">0</p>
                         <p class="text-[10px] font-bold text-slate-400 mt-0.5">/ <span id="meta-carb">421</span>g</p>
                         <progress id="progress-carb" class="progress progress-warning w-full h-1.5 mt-2" value="0" max="100"></progress>
                     </div>
                     <div class="bg-slate-50 rounded-2xl p-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Gordura</p>
-                            <p class="text-[10px] font-black text-red-400" id="pct-fat">0%</p>
-                        </div>
+                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">FAT</p>
                         <p class="text-lg font-black text-slate-800 leading-tight" id="total-fat">0</p>
                         <p class="text-[10px] font-bold text-slate-400 mt-0.5">/ <span id="meta-fat">81</span>g</p>
                         <progress id="progress-fat" class="progress progress-error w-full h-1.5 mt-2" value="0" max="100"></progress>
@@ -1011,10 +1002,6 @@
             const pctPtnVal = Math.min(100, Math.round((data.summary.ptn / CONFIG.metaPtn) * 100));
             const pctCarbVal = Math.min(100, Math.round((data.summary.carb / CONFIG.metaCarb) * 100));
             const pctFatVal = Math.min(100, Math.round((data.summary.fat / CONFIG.metaFat) * 100));
-
-            document.getElementById('pct-protein').innerText = pctPtnVal + '%';
-            document.getElementById('pct-carb').innerText = pctCarbVal + '%';
-            document.getElementById('pct-fat').innerText = pctFatVal + '%';
 
             document.getElementById('meta-protein').innerText = CONFIG.metaPtn;
             document.getElementById('meta-carb').innerText = CONFIG.metaCarb;
