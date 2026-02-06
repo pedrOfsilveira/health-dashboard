@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Health Assistant Pro</title>
+    <title>Bio-Tracker Pedro</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2966/2966327.png">
@@ -412,11 +412,24 @@
     </div>
 
     <script>
+        let allData = {};
+        let selectedDate = null;
+        let macroChart = null;
+
+        const CONFIG = {
+            metaKcal: 2914,
+            metaPtn: 124,
+            metaCarb: 421,
+            metaFat: 81
+        };
+
+        const SUPABASE_URL = "https://cjlowdjmqdsgigstagoi.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqbG93ZGptcWRzZ2lnc3RhZ29pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDM0NzQxMSwiZXhwIjoyMDg1OTIzNDExfQ.D1kfCPgH5Hlw9Mkxj9b74XnHFRG5HIFh1gOftpqB_g0";
+
         function toggleChat() {
             const modal = document.getElementById('chatModal');
             modal.classList.toggle('active');
             if (modal.classList.contains('active')) {
-                // Ajusta a data para o dia que o usuário está visualizando no dashboard
                 if (selectedDate) {
                     document.getElementById('chat-date').value = selectedDate;
                 } else if (!document.getElementById('chat-date').value) {
@@ -437,8 +450,8 @@
 
             try {
                 const payload = { date, text, timestamp: new Date().toISOString() };
-                // Usando uma rota que não cause erro visual se falhar
-                fetch(`./log_entry?data=${encodeURIComponent(JSON.stringify(payload))}`).catch(() => {});
+                // Webhook or Edge Function URL could go here. For now using local log relay
+                fetch(`https://saude-pedro.loca.lt/log_entry?data=${encodeURIComponent(JSON.stringify(payload))}`).catch(() => {});
                 
                 setTimeout(() => {
                     addMessage("Entendido, Pedro. Vou processar esse registro para o dia " + date + ". O dashboard será atualizado em breve.", 'bot');
@@ -457,154 +470,88 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        let allData = {};
-        let selectedDate = null;
-        let macroChart = null;
-
-        const CONFIG = {
-            metaKcal: 2914,
-            metaPtn: 124,
-            metaCarb: 421,
-            metaFat: 81
-        };
-
         async function loadData() {
-            console.log('Iniciando carga de dados...');
+            console.log('Iniciando carga de dados do Supabase...');
             const loadingText = document.getElementById('loading-text');
             try {
-                const response = await fetch('./sleep_nutrition_log.md?t=' + Date.now());
-                console.log('Resposta do fetch:', response.status, response.statusText);
-                
-                if (!response.ok) {
-                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
-                }
-                
-                const text = await response.text();
-                console.log('Conteúdo carregado com sucesso (' + text.length + ' bytes)');
-                parseData(text);
+                const headers = {
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": `Bearer ${SUPABASE_KEY}`
+                };
+
+                const resDays = await fetch(`${SUPABASE_URL}/rest/v1/days?select=*&order=date.desc`, { headers });
+                if (!resDays.ok) throw new Error(`Erro Supabase Days: ${resDays.status}`);
+                const days = await resDays.json();
+
+                const resMeals = await fetch(`${SUPABASE_URL}/rest/v1/meals?select=*,meal_items(*)&order=created_at.asc`, { headers });
+                if (!resMeals.ok) throw new Error(`Erro Supabase Meals: ${resMeals.status}`);
+                const mealsRaw = await resMeals.json();
+
+                transformSupabaseData(days, mealsRaw);
             } catch (error) {
                 console.error('Erro no loadData:', error);
-                loadingText.innerHTML = `<span class="text-red-500">Falha na Sincronização</span><br>
+                loadingText.innerHTML = `<span class="text-red-500">Erro de Conexão</span><br>
                                         <span class="text-[10px] text-slate-400 normal-case mt-2">${error.message}</span>`;
-                loadingText.classList.remove('text-slate-400');
             }
         }
 
-        function parseData(content) {
-            console.log('Iniciando parsing do Markdown...');
+        function transformSupabaseData(days, mealsRaw) {
             const dataByDate = {};
-            const sections = content.split(/##\s+/);
-            console.log(`Encontradas ${sections.length - 1} seções de data.`);
             
-            sections.forEach((section, idx) => {
-                if (idx === 0 && !section.trim()) return;
-                
-                const lines = section.split('\n');
-                const dateHeader = lines[0].trim();
-                const dateMatch = dateHeader.match(/(\d{4}-\d{2}-\d{2})/);
-                
-                if (dateMatch) {
-                    const date = dateMatch[1];
-                    console.log(`Processando data: ${date}`);
-                    const dayData = {
-                        date,
-                        meals: [],
-                        summary: { kcal: 0, ptn: 0, carb: 0, fat: 0 },
-                        sleep: { start: null, end: null, quality: '--', hours: 0, minutes: 0 },
-                        notes: []
-                    };
+            days.forEach(day => {
+                dataByDate[day.date] = {
+                    date: day.date,
+                    summary: {
+                        kcal: day.kcal_total || 0,
+                        ptn: day.ptn_total || 0,
+                        carb: day.carb_total || 0,
+                        fat: day.fat_total || 0
+                    },
+                    sleep: {
+                        start: day.sleep_start,
+                        end: day.sleep_end,
+                        quality: day.sleep_quality || 'BOA',
+                        hours: 0,
+                        minutes: 0
+                    },
+                    meals: [],
+                    notes: day.notes ? [day.notes] : []
+                };
 
-                    let currentSection = null;
+                if (day.sleep_start && day.sleep_end) {
+                    const [h1, m1] = day.sleep_start.split(':').map(Number);
+                    const [h2, m2] = day.sleep_end.split(':').map(Number);
+                    let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+                    if (diff < 0) diff += 24 * 60;
+                    dataByDate[day.date].sleep.hours = Math.floor(diff / 60);
+                    dataByDate[day.date].sleep.minutes = diff % 60;
+                }
+            });
 
-                    lines.forEach(line => {
-                        const trimmedLine = line.trim();
-                        if (!trimmedLine) return;
-
-                        if (trimmedLine.startsWith('- sleep:')) {
-                            const sleepMatch = trimmedLine.match(/sleep:\s*(?:deitei|deitou)?\s*(\d{2}:\d{2})\s*->\s*(?:acordou)?\s*(\d{2}:\d{2});\s*(?:qualidade|quality|qual):\s*([^;|\n]+)/i);
-                            if (sleepMatch) {
-                                dayData.sleep.start = sleepMatch[1];
-                                dayData.sleep.end = sleepMatch[2];
-                                dayData.sleep.quality = sleepMatch[3].trim().toUpperCase();
-                                
-                                const [h1, m1] = dayData.sleep.start.split(':').map(Number);
-                                const [h2, m2] = dayData.sleep.end.split(':').map(Number);
-                                let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
-                                if (diff < 0) diff += 24 * 60;
-                                dayData.sleep.hours = Math.floor(diff / 60);
-                                dayData.sleep.minutes = diff % 60;
-                            }
-                        } else if (trimmedLine.startsWith('- nutrition:')) {
-                            currentSection = 'nutrition';
-                        } else if (trimmedLine.startsWith('- summary:')) {
-                            const summaryMatch = trimmedLine.match(/summary:\s*([\d.,]+)\s*kcal,\s*([\d.,]+)g\s*ptn,\s*([\d.,]+)g\s*carb,\s*([\d.,]+)g\s*fat/i);
-                            if (summaryMatch) {
-                                dayData.summary.kcal = parseInt(summaryMatch[1].replace(/[.,]/g, ''));
-                                dayData.summary.ptn = parseInt(summaryMatch[2]);
-                                dayData.summary.carb = parseInt(summaryMatch[3]);
-                                dayData.summary.fat = parseInt(summaryMatch[4]);
-                            }
-                        } else if (trimmedLine.startsWith('- notes:')) {
-                            dayData.notes.push(trimmedLine.replace('- notes:', '').trim());
-                        } else if (currentSection === 'nutrition' && (trimmedLine.startsWith('  -') || trimmedLine.startsWith('-'))) {
-                            // Suporte a marcadores simples '-' ou identados '  -' para refeições
-                            const mealText = trimmedLine.replace(/^(\s*-\s*)/, '').trim();
-                            const meal = parseMealLine(mealText);
-                            if (meal) {
-                                dayData.meals.push(meal);
-                            } else {
-                                console.warn(`Falha ao parsear linha de refeição: "${mealText}"`);
-                            }
-                        } else if (trimmedLine.startsWith('-') && currentSection === 'nutrition') {
-                            currentSection = null;
-                        }
+            mealsRaw.forEach(m => {
+                if (dataByDate[m.date]) {
+                    dataByDate[m.date].meals.push({
+                        id: m.id,
+                        name: m.name,
+                        kcal: m.kcal,
+                        ptn: m.ptn,
+                        items: (m.meal_items || []).map(it => ({
+                            name: it.name,
+                            kcal: it.kcal,
+                            ptn: it.ptn
+                        }))
                     });
-
-                    dataByDate[date] = dayData;
                 }
             });
 
             allData = dataByDate;
             const dates = Object.keys(allData).sort().reverse();
-            console.log('Datas disponíveis:', dates);
-            
-            if (dates.length === 0) {
-                document.getElementById('loading-text').innerText = 'Nenhum dado encontrado no log.';
-                return;
+            if (dates.length > 0) {
+                renderDateSelector(dates);
+                selectDate(dates[0]);
+            } else {
+                document.getElementById('loading-text').innerText = 'Nenhum registro na nuvem.';
             }
-            
-            renderDateSelector(dates);
-            selectDate(dates[0]);
-        }
-
-        function parseMealLine(line) {
-            // Regex melhorada para lidar com itens complexos e múltiplos separadores
-            const headerMatch = line.match(/^([^\(]+)\s*\(([\d.,]+)\s*kcal,\s*([\d.,]+)g\s*ptn\)/i);
-            if (!headerMatch) return null;
-
-            const meal = {
-                name: headerMatch[1].trim(),
-                kcal: parseInt(headerMatch[2].replace(/[.,]/g, '')),
-                ptn: parseInt(headerMatch[3]),
-                items: []
-            };
-
-            const details = line.substring(line.indexOf(':') + 1).trim();
-            if (details && line.includes(':')) {
-                // Regex para capturar itens: Nome (X kcal, Yg ptn)
-                // O padrão é: Texto (número kcal, número g ptn)
-                const itemRegex = /([^,]+?)\s*\(([\d.,]+)\s*kcal,\s*([\d.,]+)g\s*ptn\)/g;
-                let match;
-                while ((match = itemRegex.exec(details)) !== null) {
-                    meal.items.push({
-                        name: match[1].trim(),
-                        kcal: parseInt(match[2].replace(/[.,]/g, '')),
-                        ptn: parseInt(match[3])
-                    });
-                }
-            }
-
-            return meal;
         }
 
         function renderDateSelector(dates) {
@@ -634,8 +581,8 @@
             updateUI(allData[date]);
         }
 
-        async function deleteMeal(date, mealName, elementId) {
-            if (!confirm(`Deseja excluir a refeição "${mealName}"?`)) return;
+        async function deleteMeal(date, mealId, elementId) {
+            if (!confirm(`Deseja realmente excluir esta refeição?`)) return;
 
             const element = document.getElementById(elementId);
             if (element) {
@@ -646,20 +593,31 @@
             }
 
             try {
-                const url = `./log_entry?action=delete&date=${encodeURIComponent(date)}&meal=${encodeURIComponent(mealName)}`;
-                await fetch(url).catch(() => {});
-                
-                // Feedback visual: remove do DOM após um pequeno delay
-                setTimeout(() => {
-                    if (element) {
-                        element.style.transition = 'all 0.3s ease';
-                        element.style.transform = 'scale(0.9)';
-                        element.style.opacity = '0';
-                        setTimeout(() => element.remove(), 300);
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/meals?id=eq.${mealId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        "apikey": SUPABASE_KEY,
+                        "Authorization": `Bearer ${SUPABASE_KEY}`
                     }
-                }, 800);
-            } catch (e) {
-                console.error('Erro ao excluir:', e);
+                });
+
+                if (res.ok) {
+                    setTimeout(() => {
+                        if (element) {
+                            element.style.transform = 'scale(0.9)';
+                            element.style.opacity = '0';
+                            setTimeout(() => {
+                                element.remove();
+                                loadData(); // Recarrega para atualizar resumo
+                            }, 300);
+                        }
+                    }, 500);
+                } else {
+                    throw new Error('Falha ao excluir no Supabase');
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Erro ao excluir: ' + error.message);
                 if (element) {
                     element.style.opacity = '1';
                     element.style.pointerEvents = 'auto';
@@ -806,7 +764,7 @@
                                     <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-tighter">${meal.ptn}g ptn</span>
                                 </div>
                             </div>
-                            <button onclick="event.stopPropagation(); deleteMeal('${data.date}', '${meal.name.replace(/'/g, "\\'")}', 'meal-${idx}')" class="delete-meal-btn" title="Excluir refeição">
+                            <button onclick="event.stopPropagation(); deleteMeal('${data.date}', ${meal.id}, 'meal-${idx}')" class="delete-meal-btn" title="Excluir refeição">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
