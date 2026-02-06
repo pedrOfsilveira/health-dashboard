@@ -35,6 +35,51 @@
             padding-bottom: 100px;
         }
 
+        /* PWA Install Banner */
+        .pwa-backdrop {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 999;
+            display: flex; align-items: flex-end; justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        .pwa-banner {
+            background: white;
+            border-radius: 28px 28px 0 0;
+            padding: 32px 24px 28px;
+            width: 100%; max-width: 480px;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
+            animation: slideUpBanner 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUpBanner { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .pwa-banner-icon {
+            width: 64px; height: 64px;
+            border-radius: 16px;
+            background: #0f172a;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 12px rgba(15,23,42,0.3);
+        }
+        .pwa-install-btn {
+            width: 100%; padding: 14px;
+            background: #0f172a; color: white;
+            border: none; border-radius: 16px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 15px; font-weight: 800;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .pwa-install-btn:active { transform: scale(0.97); opacity: 0.9; }
+        .pwa-dismiss {
+            width: 100%; padding: 10px;
+            background: none; border: none;
+            color: #94a3b8; font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 13px; font-weight: 600;
+            cursor: pointer;
+        }
+
         /* FAB and Chat Modal */
         .fab {
             position: fixed;
@@ -448,6 +493,36 @@
             <div class="w-8 h-1 bg-slate-200 mx-auto rounded-full mb-6"></div>
             <p class="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">Health Intelligence System</p>
         </footer>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div id="pwa-install-popup" class="pwa-backdrop" style="display:none" onclick="if(event.target===this)dismissInstall()">
+        <div class="pwa-banner">
+            <div class="flex items-center gap-4 mb-5">
+                <div class="pwa-banner-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-black text-slate-900 tracking-tight">Instalar Bio-Tracker</h3>
+                    <p class="text-xs text-slate-400 font-medium mt-0.5">Acesso rápido direto da sua tela inicial</p>
+                </div>
+            </div>
+            <div class="flex flex-col gap-3 mb-1">
+                <div class="flex items-center gap-3 text-xs text-slate-500">
+                    <span class="text-base">⚡</span> Abre instantaneamente, como um app nativo
+                </div>
+                <div class="flex items-center gap-3 text-xs text-slate-500">
+                    <span class="text-base">📴</span> Funciona offline com dados em cache
+                </div>
+                <div class="flex items-center gap-3 text-xs text-slate-500">
+                    <span class="text-base">🔔</span> Tela cheia, sem barra do navegador
+                </div>
+            </div>
+            <div class="mt-5 flex flex-col gap-2">
+                <button class="pwa-install-btn" onclick="installPWA()">Instalar App</button>
+                <button class="pwa-dismiss" onclick="dismissInstall()">Agora não</button>
+            </div>
+        </div>
     </div>
 
     <!-- FAB and Chat -->
@@ -1248,6 +1323,44 @@
             }
         }
 
+        // PWA Install Logic
+        let deferredPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Show popup if user hasn't dismissed it recently
+            const dismissed = localStorage.getItem('pwa-install-dismissed');
+            if (!dismissed || (Date.now() - parseInt(dismissed)) > 7 * 24 * 60 * 60 * 1000) {
+                setTimeout(() => {
+                    document.getElementById('pwa-install-popup').style.display = 'flex';
+                }, 1500);
+            }
+        });
+
+        function installPWA() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((result) => {
+                if (result.outcome === 'accepted') {
+                    console.log('PWA instalado!');
+                }
+                deferredPrompt = null;
+                document.getElementById('pwa-install-popup').style.display = 'none';
+            });
+        }
+
+        function dismissInstall() {
+            document.getElementById('pwa-install-popup').style.display = 'none';
+            localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+        }
+
+        // Hide banner if already installed as PWA
+        window.addEventListener('appinstalled', () => {
+            document.getElementById('pwa-install-popup').style.display = 'none';
+            deferredPrompt = null;
+        });
+
         window.onload = () => {
             loadData();
             subscribeToLogs();
@@ -1255,6 +1368,10 @@
                 navigator.serviceWorker.register('./sw.js')
                     .then(() => console.log('Service Worker registrado!'))
                     .catch(err => console.log('Erro ao registrar SW:', err));
+            }
+            // If already in standalone mode, never show install popup
+            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+                document.getElementById('pwa-install-popup').style.display = 'none';
             }
         };
     </script>
