@@ -22,3 +22,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Database
+*.db
+
+# Environment / secrets
+.env
+.env.*
+
+# Supabase CLI temp files
+supabase/.temp/
+
+# Python
+__pycache__/
+*.pyc
+
+# Private data
+sleep_nutrition_log.md

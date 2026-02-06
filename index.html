@@ -450,27 +450,37 @@
             addMessage(text, 'user');
             input.value = '';
 
+            const statusMsg = addMessage("⏳ Processando com IA...", 'bot', 'status-msg');
+
             try {
-                const payload = { 
-                    date: date, 
-                    text: text,
-                    status: 'received'
-                };
-                
-                const { data, error } = await supabaseClient
-                    .from('chat_logs')
-                    .insert([payload])
-                    .select();
-                
-                if (!error) {
-                    addMessage("Alfred recebeu sua mensagem e está processando...", 'bot', 'status-msg');
+                const res = await fetch(`${SUPABASE_URL}/functions/v1/process-entry`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    },
+                    body: JSON.stringify({ text, date })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    statusMsg.innerText = result.message;
+                    statusMsg.classList.add('font-bold');
+                    statusMsg.style.color = '#10b981';
+                    // Recarrega os dados e seleciona o dia
+                    await loadData();
+                    if (allData[date]) {
+                        selectDate(date);
+                    }
                 } else {
-                    console.error("Erro Supabase:", error);
-                    addMessage("Erro ao enviar para o Alfred. Tentando novamente...", 'bot');
+                    statusMsg.innerText = "❌ Erro: " + (result.error || "Falha no processamento");
+                    statusMsg.style.color = '#ef4444';
                 }
             } catch (e) {
                 console.error("Erro no envio:", e);
-                addMessage("Servidor instável. Tentando processar em background...", 'bot');
+                statusMsg.innerText = "❌ Erro de rede: " + e.message;
+                statusMsg.style.color = '#ef4444';
             }
         }
 
