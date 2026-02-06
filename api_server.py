@@ -72,6 +72,6 @@ class HealthHandler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.chdir('/home/pedro/clawd/projects/health-dashboard')
-    server = HTTPServer(('0.0.0.0', 8080), HealthHandler)
-    print("API Server running on port 8080...")
+    server = HTTPServer(('0.0.0.0', 8000), HealthHandler)
+    print("API Server running on port 8000...")
     server.serve_forever()
