@@ -651,27 +651,54 @@
             }
 
             try {
+                // 1. Buscar dados da refeição antes de deletar
+                const mealRes = await fetch(`${SUPABASE_URL}/rest/v1/meals?id=eq.${mealId}&select=kcal,ptn,carb,fat`, {
+                    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+                });
+                const mealData = await mealRes.json();
+                const meal = mealData[0] || { kcal: 0, ptn: 0, carb: 0, fat: 0 };
+
+                // 2. Deletar a refeição (meal_items são deletados em cascata)
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/meals?id=eq.${mealId}`, {
                     method: 'DELETE',
-                    headers: {
-                        "apikey": SUPABASE_KEY,
-                        "Authorization": `Bearer ${SUPABASE_KEY}`
-                    }
+                    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
                 });
 
-                if (res.ok) {
+                if (!res.ok) throw new Error('Falha ao excluir no Supabase');
+
+                // 3. Subtrair macros do dia
+                const dayRes = await fetch(`${SUPABASE_URL}/rest/v1/days?date=eq.${date}&select=kcal_total,ptn_total,carb_total,fat_total`, {
+                    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+                });
+                const dayData = await dayRes.json();
+                if (dayData[0]) {
+                    const d = dayData[0];
+                    await fetch(`${SUPABASE_URL}/rest/v1/days?date=eq.${date}`, {
+                        method: 'PATCH',
+                        headers: {
+                            "apikey": SUPABASE_KEY,
+                            "Authorization": `Bearer ${SUPABASE_KEY}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            kcal_total: Math.max(0, (d.kcal_total || 0) - (meal.kcal || 0)),
+                            ptn_total: Math.max(0, (d.ptn_total || 0) - (meal.ptn || 0)),
+                            carb_total: Math.max(0, (d.carb_total || 0) - (meal.carb || 0)),
+                            fat_total: Math.max(0, (d.fat_total || 0) - (meal.fat || 0))
+                        })
+                    });
+                }
+
+                // 4. Animar remoção e recarregar UI
+                if (element) {
+                    element.style.transform = 'scale(0.9)';
+                    element.style.opacity = '0';
                     setTimeout(() => {
-                        if (element) {
-                            element.style.transform = 'scale(0.9)';
-                            element.style.opacity = '0';
-                            setTimeout(() => {
-                                element.remove();
-                                loadData(); // Recarrega para atualizar resumo
-                            }, 300);
-                        }
-                    }, 500);
+                        element.remove();
+                        loadData();
+                    }, 300);
                 } else {
-                    throw new Error('Falha ao excluir no Supabase');
+                    loadData();
                 }
             } catch (error) {
                 console.error(error);
