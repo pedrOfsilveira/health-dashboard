@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Assistant Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10b981">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2966/2966327.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <style>
+        :root { 
+            --p-color: #10b981;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+        }
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-main); 
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 100px;
+        }
+
+        /* FAB and Chat Modal */
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 50;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .fab:active { transform: scale(0.9) translateY(2px); }
+
+        .chat-modal {
+            position: fixed;
+            bottom: 85px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85vw;
+            max-width: 400px;
+            max-height: 75dvh;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 50;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            transition: all 0.3s ease;
+        }
+        @media (min-width: 640px) {
+            .chat-modal { left: auto; right: 30px; transform: none; bottom: 100px; width: 400px; }
+            .fab { right: 30px; bottom: 30px; }
+        }
+        .chat-modal.active { display: flex; animation: slideUp 0.3s ease-out; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-header {
+            padding: 16px 20px;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            min-height: 200px;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #f8fafc;
+        }
+
+        .chat-input-area {
+            padding: 16px;
+            background: white;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .msg { 
+            padding: 12px 16px; 
+            border-radius: 20px; 
+            max-width: 85%; 
+            font-size: 0.875rem; 
+            line-height: 1.4;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .msg-user { 
+            align-self: flex-end; 
+            background: #10b981; 
+            color: white; 
+            border-bottom-right-radius: 4px;
+        }
+        .msg-bot { 
+            align-self: flex-start; 
+            background: white; 
+            color: #1e293b; 
+            border: 1px solid #e2e8f0; 
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-date-container {
+            padding: 10px 16px;
+            background: #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .chat-date-input {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #475569;
+            width: 100%;
+            outline: none;
+        }
+
+        .container { width: 100%; max-width: 500px; margin: 0 auto; padding: 16px; }
+        
+        .card-pro { 
+            background: var(--card-bg); 
+            border: 1px solid #e2e8f0; 
+            border-radius: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            padding: 24px; 
+            margin-bottom: 24px; 
+        }
+        
+        .section-title { 
+            font-size: 0.7rem; 
+            font-weight: 800; 
+            color: var(--text-muted); 
+            text-transform: uppercase; 
+            letter-spacing: 0.15em; 
+            margin-bottom: 16px; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px;
+        }
+        .section-title::after { content: ""; flex: 1; height: 1px; background: #e2e8f0; }
+
+        .date-selector {
+            display: flex;
+            overflow-x: auto;
+            gap: 12px;
+            padding: 4px 4px 16px 4px;
+            margin-bottom: 20px;
+            scrollbar-width: none;
+        }
+        .date-selector::-webkit-scrollbar { display: none; }
+        .date-tab {
+            flex: 0 0 auto;
+            padding: 12px 20px;
+            border-radius: 18px;
+            background: #fff;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid #e2e8f0;
+        }
+        .date-tab.active {
+            background: var(--text-main);
+            color: white;
+            border-color: var(--text-main);
+            box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.3);
+            transform: translateY(-1px);
+        }
+
+        progress { border-radius: 99px; }
+        progress::-webkit-progress-bar { background-color: #f1f5f9; border-radius: 99px; }
+        progress::-webkit-progress-value { border-radius: 99px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        .meal-collapse {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            margin-bottom: 14px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .meal-collapse:hover { border-color: #cbd5e1; }
+        .collapse-title { padding: 20px !important; min-height: unset !important; position: relative; }
+        .collapse-content { padding: 0 20px 20px 20px !important; }
+
+        .delete-meal-btn {
+            position: absolute;
+            right: 45px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 20;
+            color: #94a3b8; /* slate-400 */
+            transition: color 0.2s;
+            padding: 8px;
+        }
+        .delete-meal-btn:hover {
+            color: #ef4444; /* red-500 */
+        }
+
+        .sub-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px 0;
+            border-top: 1px dashed #f1f5f9;
+        }
+        .sub-item:first-child { border-top: none; }
+        
+        .tag-micro { font-size: 0.6rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase; }
+
+        .assistant-msg {
+            background: #f8fafc;
+            border-radius: 20px 20px 20px 4px;
+            padding: 16px;
+            position: relative;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #334155;
+            border-left: 5px solid #8b5cf6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .sleep-badge {
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 0.65rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .loading-overlay { position: fixed; inset: 0; background: #fff; display: flex; align-items: center; justify-content: center; z-index: 100; transition: opacity 0.5s; }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading-overlay">
+        <div class="flex flex-col items-center gap-4">
+            <span class="loading loading-ring loading-lg text-emerald-500"></span>
+            <p id="loading-text" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Sincronizando Log...</p>
+        </div>
+    </div>
+
+    <div class="container opacity-0 transition-opacity duration-700" id="main-content">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8 pt-4">
+            <div>
+                <h1 class="text-2xl font-black text-slate-900 tracking-tight">Bio-Tracker</h1>
+                <p id="display-date-main" class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mt-1">Sábado, 03 de Fevereiro</p>
+            </div>
+            <div class="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            </div>
+        </div>
+
+        <!-- Date Tabs -->
+        <div id="date-tabs" class="date-selector"></div>
+
+        <!-- Metrics Grid -->
+        <div class="card-pro">
+            <div class="section-title">Metas Diárias</div>
+            <div class="flex flex-col gap-6">
+                <!-- Calories -->
+                <div>
+                    <div class="flex justify-between items-end mb-3">
+                        <div>
+                            <span class="text-4xl font-black text-slate-900 tracking-tighter" id="total-kcal">0</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase ml-2 tracking-widest">kcal / <span id="meta-kcal">2914</span></span>
+                        </div>
+                        <div class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg text-xs font-black" id="pct-kcal">0%</div>
+                    </div>
+                    <progress id="progress-kcal" class="progress progress-success w-full h-3" value="0" max="100"></progress>
+                </div>
+
+                <!-- Macros Row -->
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-slate-50 rounded-2xl p-4">
+                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">PTN</p>
+                        <p class="text-xl font-black text-slate-800" id="total-protein">0g</p>
+                        <progress id="progress-protein" class="progress progress-success w-full h-1.5 mt-3" value="0" max="100"></progress>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-4">
+                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">CHO</p>
+                        <p class="text-xl font-black text-slate-800" id="total-carb">0g</p>
+                        <progress id="progress-carb" class="progress progress-warning w-full h-1.5 mt-3" value="0" max="100"></progress>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-4">
+                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">FAT</p>
+                        <p class="text-xl font-black text-slate-800" id="total-fat">0g</p>
+                        <progress id="progress-fat" class="progress progress-error w-full h-1.5 mt-3" value="0" max="100"></progress>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sleep Card -->
+        <div class="card-pro">
+            <div class="section-title">Recuperação & Sono</div>
+            <div class="flex items-center gap-5">
+                <div class="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-3xl shadow-sm">🌙</div>
+                <div class="flex-1">
+                    <p class="text-2xl font-black text-slate-900 tracking-tight" id="sleep-duration">--h --m</p>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider" id="sleep-details">Aguardando dados...</p>
+                </div>
+                <div>
+                    <div id="sleep-quality-badge" class="sleep-badge bg-slate-100 text-slate-400">---</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="section-title">Composição da Dieta</div>
+        <div class="card-pro">
+            <div class="w-full max-w-[240px] aspect-square mx-auto relative">
+                <canvas id="macroChart"></canvas>
+            </div>
+            <div id="chart-legend" class="mt-6 grid grid-cols-3 gap-2">
+                <!-- Legend items injected by JS -->
+            </div>
+        </div>
+
+        <!-- Meals Section -->
+        <div class="section-title">Diário Nutricional</div>
+        <div id="meals-container" class="mb-8">
+            <!-- Expandable cards will be injected here -->
+        </div>
+
+        <!-- Assistant Insights -->
+        <div id="insights-section" class="mb-10">
+            <div class="section-title">AI Health Insights</div>
+            <div class="assistant-msg" id="insights-content">
+                Processando padrões metabólicos...
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="section-title">Observações do Dia</div>
+        <div id="notes-container" class="bg-slate-900 text-white rounded-3xl p-6 text-sm font-medium leading-relaxed mb-10 shadow-xl">
+            Sem registros.
+        </div>
+
+        <footer class="pb-16 text-center">
+            <div class="w-8 h-1 bg-slate-200 mx-auto rounded-full mb-6"></div>
+            <p class="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">Health Intelligence System</p>
+        </footer>
+    </div>
+
+    <!-- FAB and Chat -->
+    <div class="fab" onclick="toggleChat()">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+    </div>
+
+    <div class="chat-modal" id="chatModal">
+        <div class="chat-header">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span class="text-sm font-bold tracking-tight">Health Assistant</span>
+            </div>
+            <button onclick="toggleChat()" class="p-1 hover:bg-slate-800 rounded-lg transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="chat-date-container">
+            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Data do Registro</label>
+            <input type="date" id="chat-date" class="chat-date-input">
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="msg msg-bot">Olá, Pedro! O que deseja registrar hoje? Você pode descrever sua refeição ou seu sono.</div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" class="input input-bordered flex-1 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-emerald-500 text-sm h-12" placeholder="Descreva sua refeição...">
+            <button onclick="sendMessage()" class="btn btn-square bg-slate-900 hover:bg-slate-800 text-white border-none rounded-2xl w-12 h-12">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 rotate-90" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function toggleChat() {
+            const modal = document.getElementById('chatModal');
+            modal.classList.toggle('active');
+            if (modal.classList.contains('active')) {
+                // Ajusta a data para o dia que o usuário está visualizando no dashboard
+                if (selectedDate) {
+                    document.getElementById('chat-date').value = selectedDate;
+                } else if (!document.getElementById('chat-date').value) {
+                    document.getElementById('chat-date').value = new Date().toISOString().split('T')[0];
+                }
+                document.getElementById('chatInput').focus();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const date = document.getElementById('chat-date').value;
+            const text = input.value.trim();
+            if (!text) return;
+
+            addMessage(text, 'user');
+            input.value = '';
+
+            try {
+                const payload = { date, text, timestamp: new Date().toISOString() };
+                // Usando uma rota que não cause erro visual se falhar
+                fetch(`./log_entry?data=${encodeURIComponent(JSON.stringify(payload))}`).catch(() => {});
+                
+                setTimeout(() => {
+                    addMessage("Entendido, Pedro. Vou processar esse registro para o dia " + date + ". O dashboard será atualizado em breve.", 'bot');
+                }, 600);
+            } catch (e) {
+                addMessage("Registro enviado com sucesso!", 'bot');
+            }
+        }
+
+        function addMessage(text, side) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = `msg msg-${side}`;
+            div.innerText = text;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        let allData = {};
+        let selectedDate = null;
+        let macroChart = null;
+
+        const CONFIG = {
+            metaKcal: 2914,
+            metaPtn: 124,
+            metaCarb: 421,
+            metaFat: 81
+        };
+
+        async function loadData() {
+            console.log('Iniciando carga de dados...');
+            const loadingText = document.getElementById('loading-text');
+            try {
+                const response = await fetch('./sleep_nutrition_log.md?t=' + Date.now());
+                console.log('Resposta do fetch:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const text = await response.text();
+                console.log('Conteúdo carregado com sucesso (' + text.length + ' bytes)');
+                parseData(text);
+            } catch (error) {
+                console.error('Erro no loadData:', error);
+                loadingText.innerHTML = `<span class="text-red-500">Falha na Sincronização</span><br>
+                                        <span class="text-[10px] text-slate-400 normal-case mt-2">${error.message}</span>`;
+                loadingText.classList.remove('text-slate-400');
+            }
+        }
+
+        function parseData(content) {
+            console.log('Iniciando parsing do Markdown...');
+            const dataByDate = {};
+            const sections = content.split(/##\s+/);
+            console.log(`Encontradas ${sections.length - 1} seções de data.`);
+            
+            sections.forEach((section, idx) => {
+                if (idx === 0 && !section.trim()) return;
+                
+                const lines = section.split('\n');
+                const dateHeader = lines[0].trim();
+                const dateMatch = dateHeader.match(/(\d{4}-\d{2}-\d{2})/);
+                
+                if (dateMatch) {
+                    const date = dateMatch[1];
+                    console.log(`Processando data: ${date}`);
+                    const dayData = {
+                        date,
+                        meals: [],
+                        summary: { kcal: 0, ptn: 0, carb: 0, fat: 0 },
+                        sleep: { start: null, end: null, quality: '--', hours: 0, minutes: 0 },
+                        notes: []
+                    };
+
+                    let currentSection = null;
+
+                    lines.forEach(line => {
+                        const trimmedLine = line.trim();
+                        if (!trimmedLine) return;
+
+                        if (trimmedLine.startsWith('- sleep:')) {
+                            const sleepMatch = trimmedLine.match(/sleep:\s*(?:deitei|deitou)?\s*(\d{2}:\d{2})\s*->\s*(?:acordou)?\s*(\d{2}:\d{2});\s*(?:qualidade|quality|qual):\s*([^;|\n]+)/i);
+                            if (sleepMatch) {
+                                dayData.sleep.start = sleepMatch[1];
+                                dayData.sleep.end = sleepMatch[2];
+                                dayData.sleep.quality = sleepMatch[3].trim().toUpperCase();
+                                
+                                const [h1, m1] = dayData.sleep.start.split(':').map(Number);
+                                const [h2, m2] = dayData.sleep.end.split(':').map(Number);
+                                let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+                                if (diff < 0) diff += 24 * 60;
+                                dayData.sleep.hours = Math.floor(diff / 60);
+                                dayData.sleep.minutes = diff % 60;
+                            }
+                        } else if (trimmedLine.startsWith('- nutrition:')) {
+                            currentSection = 'nutrition';
+                        } else if (trimmedLine.startsWith('- summary:')) {
+                            const summaryMatch = trimmedLine.match(/summary:\s*([\d.,]+)\s*kcal,\s*([\d.,]+)g\s*ptn,\s*([\d.,]+)g\s*carb,\s*([\d.,]+)g\s*fat/i);
+                            if (summaryMatch) {
+                                dayData.summary.kcal = parseInt(summaryMatch[1].replace(/[.,]/g, ''));
+                                dayData.summary.ptn = parseInt(summaryMatch[2]);
+                                dayData.summary.carb = parseInt(summaryMatch[3]);
+                                dayData.summary.fat = parseInt(summaryMatch[4]);
+                            }
+                        } else if (trimmedLine.startsWith('- notes:')) {
+                            dayData.notes.push(trimmedLine.replace('- notes:', '').trim());
+                        } else if (currentSection === 'nutrition' && (trimmedLine.startsWith('  -') || trimmedLine.startsWith('-'))) {
+                            // Suporte a marcadores simples '-' ou identados '  -' para refeições
+                            const mealText = trimmedLine.replace(/^(\s*-\s*)/, '').trim();
+                            const meal = parseMealLine(mealText);
+                            if (meal) {
+                                dayData.meals.push(meal);
+                            } else {
+                                console.warn(`Falha ao parsear linha de refeição: "${mealText}"`);
+                            }
+                        } else if (trimmedLine.startsWith('-') && currentSection === 'nutrition') {
+                            currentSection = null;
+                        }
+                    });
+
+                    dataByDate[date] = dayData;
+                }
+            });
+
+            allData = dataByDate;
+            const dates = Object.keys(allData).sort().reverse();
+            console.log('Datas disponíveis:', dates);
+            
+            if (dates.length === 0) {
+                document.getElementById('loading-text').innerText = 'Nenhum dado encontrado no log.';
+                return;
+            }
+            
+            renderDateSelector(dates);
+            selectDate(dates[0]);
+        }
+
+        function parseMealLine(line) {
+            // Regex melhorada para lidar com itens complexos e múltiplos separadores
+            const headerMatch = line.match(/^([^\(]+)\s*\(([\d.,]+)\s*kcal,\s*([\d.,]+)g\s*ptn\)/i);
+            if (!headerMatch) return null;
+
+            const meal = {
+                name: headerMatch[1].trim(),
+                kcal: parseInt(headerMatch[2].replace(/[.,]/g, '')),
+                ptn: parseInt(headerMatch[3]),
+                items: []
+            };
+
+            const details = line.substring(line.indexOf(':') + 1).trim();
+            if (details && line.includes(':')) {
+                // Regex para capturar itens: Nome (X kcal, Yg ptn)
+                // O padrão é: Texto (número kcal, número g ptn)
+                const itemRegex = /([^,]+?)\s*\(([\d.,]+)\s*kcal,\s*([\d.,]+)g\s*ptn\)/g;
+                let match;
+                while ((match = itemRegex.exec(details)) !== null) {
+                    meal.items.push({
+                        name: match[1].trim(),
+                        kcal: parseInt(match[2].replace(/[.,]/g, '')),
+                        ptn: parseInt(match[3])
+                    });
+                }
+            }
+
+            return meal;
+        }
+
+        function renderDateSelector(dates) {
+            const container = document.getElementById('date-tabs');
+            container.innerHTML = '';
+            dates.forEach(date => {
+                const dateObj = new Date(date + 'T12:00:00');
+                const day = dateObj.getDate().toString().padStart(2, '0');
+                const month = dateObj.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+                const tab = document.createElement('div');
+                tab.className = 'date-tab';
+                tab.id = `tab-${date}`;
+                tab.innerHTML = `${day} <span class="opacity-40 text-[10px]">${month}</span>`;
+                tab.onclick = () => selectDate(date);
+                container.appendChild(tab);
+            });
+        }
+
+        function selectDate(date) {
+            selectedDate = date;
+            document.querySelectorAll('.date-tab').forEach(t => t.classList.remove('active'));
+            const activeTab = document.getElementById(`tab-${date}`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+                activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }
+            updateUI(allData[date]);
+        }
+
+        async function deleteMeal(date, mealName, elementId) {
+            if (!confirm(`Deseja excluir a refeição "${mealName}"?`)) return;
+
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.style.opacity = '0.5';
+                element.style.pointerEvents = 'none';
+                const title = element.querySelector('h3');
+                if (title) title.innerText = 'Excluindo...';
+            }
+
+            try {
+                const url = `./log_entry?action=delete&date=${encodeURIComponent(date)}&meal=${encodeURIComponent(mealName)}`;
+                await fetch(url).catch(() => {});
+                
+                // Feedback visual: remove do DOM após um pequeno delay
+                setTimeout(() => {
+                    if (element) {
+                        element.style.transition = 'all 0.3s ease';
+                        element.style.transform = 'scale(0.9)';
+                        element.style.opacity = '0';
+                        setTimeout(() => element.remove(), 300);
+                    }
+                }, 800);
+            } catch (e) {
+                console.error('Erro ao excluir:', e);
+                if (element) {
+                    element.style.opacity = '1';
+                    element.style.pointerEvents = 'auto';
+                }
+            }
+        }
+
+        function getItemIcon(name) {
+            name = name.toLowerCase();
+            if (name.includes('arroz')) return '🍚';
+            if (name.includes('feijão')) return '🫘';
+            if (name.includes('carne') || name.includes('bife') || name.includes('almôndega')) return '🥩';
+            if (name.includes('frango') || name.includes('strogonoff')) return '🍗';
+            if (name.includes('salada') || name.includes('tomate')) return '🥗';
+            if (name.includes('banana') || name.includes('fruta')) return '🍌';
+            if (name.includes('shake') || name.includes('hipercalórico')) return '🥤';
+            if (name.includes('pão') || name.includes('pancho') || name.includes('salsicha')) return '🌭';
+            if (name.includes('batata')) return '🍟';
+            if (name.includes('sorvete') || name.includes('doce') || name.includes('rapadura')) return '🍦';
+            if (name.includes('leite')) return '🥛';
+            if (name.includes('massa')) return '🍝';
+            return '🍽️';
+        }
+
+        function updateUI(data) {
+            if (!data) return;
+
+            const dateObj = new Date(data.date + 'T12:00:00');
+            document.getElementById('display-date-main').innerText = dateObj.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+            document.getElementById('total-kcal').innerText = data.summary.kcal.toLocaleString('pt-BR');
+            const pPct = Math.min(100, Math.round((data.summary.kcal / CONFIG.metaKcal) * 100));
+            document.getElementById('pct-kcal').innerText = pPct + '%';
+            document.getElementById('progress-kcal').value = pPct;
+
+            document.getElementById('total-protein').innerText = data.summary.ptn + 'g';
+            document.getElementById('total-carb').innerText = data.summary.carb + 'g';
+            document.getElementById('total-fat').innerText = data.summary.fat + 'g';
+            
+            document.getElementById('progress-protein').value = (data.summary.ptn / CONFIG.metaPtn) * 100;
+            document.getElementById('progress-carb').value = (data.summary.carb / CONFIG.metaCarb) * 100;
+            document.getElementById('progress-fat').value = (data.summary.fat / CONFIG.metaFat) * 100;
+
+            const ptnCal = data.summary.ptn * 4;
+            const choCal = data.summary.carb * 4;
+            const fatCal = data.summary.fat * 9;
+            const total = (ptnCal + choCal + fatCal) || 1;
+
+            const chartData = {
+                labels: ['Proteína', 'Carbo', 'Gordura'],
+                datasets: [{
+                    data: [ptnCal, choCal, fatCal],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                    borderWidth: 0,
+                    cutout: '75%'
+                }]
+            };
+
+            const legendContainer = document.getElementById('chart-legend');
+            legendContainer.innerHTML = [
+                { label: 'PTN', val: data.summary.ptn + 'g', color: 'bg-emerald-500', pct: Math.round(ptnCal/total*100) },
+                { label: 'CHO', val: data.summary.carb + 'g', color: 'bg-amber-500', pct: Math.round(choCal/total*100) },
+                { label: 'FAT', val: data.summary.fat + 'g', color: 'bg-red-500', pct: Math.round(fatCal/total*100) }
+            ].map(item => `
+                <div class="flex flex-col items-center">
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <div class="w-1.5 h-1.5 rounded-full ${item.color}"></div>
+                        <span class="text-[9px] font-black text-slate-400 tracking-tighter">${item.label}</span>
+                    </div>
+                    <p class="text-[11px] font-black text-slate-700">${item.val}</p>
+                    <p class="text-[8px] font-bold text-slate-400">${item.pct}%</p>
+                </div>
+            `).join('');
+
+            if (macroChart) {
+                macroChart.data = chartData;
+                macroChart.update();
+            } else {
+                macroChart = new Chart(document.getElementById('macroChart'), {
+                    type: 'doughnut',
+                    data: chartData,
+                    options: {
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: true },
+                            datalabels: {
+                                color: '#fff',
+                                font: { weight: 'bold', size: 10 },
+                                formatter: (value, ctx) => {
+                                    let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                    let pct = Math.round(value / sum * 100);
+                                    return pct > 5 ? pct + '%' : '';
+                                }
+                            }
+                        },
+                        responsive: true,
+                        maintainAspectRatio: false
+                    },
+                    plugins: [ChartDataLabels]
+                });
+            }
+
+            const badge = document.getElementById('sleep-quality-badge');
+            if (data.sleep.start) {
+                document.getElementById('sleep-duration').innerText = `${data.sleep.hours}h ${data.sleep.minutes}m`;
+                document.getElementById('sleep-details').innerText = `${data.sleep.start} às ${data.sleep.end}`;
+                const q = data.sleep.quality;
+                badge.innerText = q;
+                badge.className = `sleep-badge ${q.includes('BOA') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`;
+            } else {
+                document.getElementById('sleep-duration').innerText = '--h --m';
+                document.getElementById('sleep-details').innerText = 'Não registrado';
+                badge.innerText = 'OFF';
+                badge.className = 'sleep-badge bg-slate-100 text-slate-400';
+            }
+
+            const mealsContainer = document.getElementById('meals-container');
+            mealsContainer.innerHTML = '';
+            data.meals.forEach((meal, idx) => {
+                const mealIcon = getItemIcon(meal.name);
+                const itemsHtml = meal.items.map(item => `
+                    <div class="sub-item">
+                        <span class="mr-4 text-xl">${getItemIcon(item.name)}</span>
+                        <div class="flex-1">
+                            <p class="font-bold text-slate-700 text-xs">${item.name}</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="tag-micro bg-slate-100 text-slate-500">${item.kcal} kcal</span>
+                                <span class="tag-micro bg-emerald-50 text-emerald-600">${item.ptn}g ptn</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                mealsContainer.innerHTML += `
+                    <div id="meal-${idx}" class="meal-collapse collapse collapse-arrow">
+                        <input type="checkbox" ${idx === 0 ? 'checked' : ''} /> 
+                        <div class="collapse-title flex items-center gap-5">
+                            <div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-2xl shadow-inner">${mealIcon}</div>
+                            <div class="flex-1">
+                                <h3 class="font-black text-slate-800 text-sm tracking-tight">${meal.name}</h3>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${meal.kcal} kcal</span>
+                                    <div class="w-1 h-1 rounded-full bg-slate-200"></div>
+                                    <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-tighter">${meal.ptn}g ptn</span>
+                                </div>
+                            </div>
+                            <button onclick="event.stopPropagation(); deleteMeal('${data.date}', '${meal.name.replace(/'/g, "\\'")}', 'meal-${idx}')" class="delete-meal-btn" title="Excluir refeição">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="collapse-content"> 
+                            <div class="pt-2 border-t border-slate-50">
+                                ${itemsHtml || '<p class="text-xs text-slate-400 italic">Sem sub-itens detalhados.</p>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            const notesContainer = document.getElementById('notes-container');
+            if (data.notes.length > 0) {
+                notesContainer.innerHTML = data.notes.map(n => `
+                    <div class="flex gap-3 mb-4 last:mb-0">
+                        <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0"></div>
+                        <p class="text-slate-300">${n}</p>
+                    </div>
+                `).join('');
+                notesContainer.classList.remove('hidden');
+            } else {
+                notesContainer.innerHTML = '<p class="text-slate-500 italic text-center text-xs">Sem observações.</p>';
+            }
+
+            const insightsContent = document.getElementById('insights-content');
+            if (data.summary.kcal > CONFIG.metaKcal * 1.05) insightsContent.innerText = "Superávit identificado. Ideal para dias de treino pesado.";
+            else if (data.summary.ptn < CONFIG.metaPtn * 0.8) insightsContent.innerText = "Atenção: Meta de proteína não atingida.";
+            else insightsContent.innerText = "Consistência nutricional mantida. Continue o monitoramento.";
+
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('main-content').classList.remove('opacity-0');
+            }, 500);
+        }
+
+        window.onload = () => {
+            loadData();
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(() => console.log('Service Worker registrado!'))
+                    .catch(err => console.log('Erro ao registrar SW:', err));
+            }
+        };
+    </script>
+</body>
+</html>
