@@ -16,7 +16,10 @@ Se for refeição/comida, retorne:
 Se for dado de sono, retorne:
 {"type": "sleep", "start": "HH:MM", "end": "HH:MM", "quality": "BOA"}
 
-Se for uma nota/observação, retorne:
+Se for condição de saúde (gripe, dor, febre, mal-estar, medicamento, etc), retorne:
+{"type": "health", "condition": "nome da condição", "details": "detalhes relevantes", "severity": "leve|moderado|severo"}
+
+Se for uma nota/observação geral, retorne:
 {"type": "note", "text": "texto"}
 
 Regras:
@@ -24,7 +27,8 @@ Regras:
 - Se o usuário informar peso (ex: "200g de arroz"), use valores proporcionais
 - Se não informar peso, estime uma porção média
 - O campo "name" da refeição deve ser o tipo (Almoço, Jantar, Lanche, Café da manhã, etc)
-- Sempre retorne valores numéricos inteiros para kcal, ptn, carb, fat`;
+- Sempre retorne valores numéricos inteiros para kcal, ptn, carb, fat
+- Qualquer menção a sintomas, doenças, dor, febre, gripe, resfriado, medicamentos deve ser classificado como "health"`;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -210,6 +214,16 @@ serve(async (req) => {
         .eq("date", date);
 
       responseMsg = `🌙 Sono registrado: ${parsed.start} → ${parsed.end} (${parsed.quality})`;
+    } else if (parsed.type === "health") {
+      // Condição de saúde
+      const healthTag = `[SAÚDE] ${parsed.condition}: ${parsed.details || text} (${parsed.severity || "leve"})`;
+      const { data: day } = await supabase.from("days").select("notes").eq("date", date).single();
+      const existing = day?.notes || "";
+      const newNotes = (existing + "\n" + healthTag).trim();
+      await supabase.from("days").update({ notes: newNotes }).eq("date", date);
+
+      const severityEmoji = parsed.severity === "severo" ? "🚨" : parsed.severity === "moderado" ? "⚠️" : "🩹";
+      responseMsg = `${severityEmoji} Saúde registrada: ${parsed.condition}. Suas sugestões e insights serão adaptados!`;
     } else {
       // Nota
       const { data: day } = await supabase.from("days").select("notes").eq("date", date).single();

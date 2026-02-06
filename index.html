@@ -349,19 +349,31 @@
                 <!-- Macros Row -->
                 <div class="grid grid-cols-3 gap-4">
                     <div class="bg-slate-50 rounded-2xl p-4">
-                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">PTN</p>
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">PTN</p>
+                            <p class="text-[9px] font-extrabold text-emerald-500" id="pct-protein">0%</p>
+                        </div>
                         <p class="text-xl font-black text-slate-800" id="total-protein">0g</p>
-                        <progress id="progress-protein" class="progress progress-success w-full h-1.5 mt-3" value="0" max="100"></progress>
+                        <p class="text-[8px] font-bold text-slate-300 mt-0.5" id="meta-protein">/ 124g</p>
+                        <progress id="progress-protein" class="progress progress-success w-full h-1.5 mt-2" value="0" max="100"></progress>
                     </div>
                     <div class="bg-slate-50 rounded-2xl p-4">
-                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">CHO</p>
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">CHO</p>
+                            <p class="text-[9px] font-extrabold text-amber-500" id="pct-carb">0%</p>
+                        </div>
                         <p class="text-xl font-black text-slate-800" id="total-carb">0g</p>
-                        <progress id="progress-carb" class="progress progress-warning w-full h-1.5 mt-3" value="0" max="100"></progress>
+                        <p class="text-[8px] font-bold text-slate-300 mt-0.5" id="meta-carb">/ 421g</p>
+                        <progress id="progress-carb" class="progress progress-warning w-full h-1.5 mt-2" value="0" max="100"></progress>
                     </div>
                     <div class="bg-slate-50 rounded-2xl p-4">
-                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">FAT</p>
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">FAT</p>
+                            <p class="text-[9px] font-extrabold text-red-400" id="pct-fat">0%</p>
+                        </div>
                         <p class="text-xl font-black text-slate-800" id="total-fat">0g</p>
-                        <progress id="progress-fat" class="progress progress-error w-full h-1.5 mt-3" value="0" max="100"></progress>
+                        <p class="text-[8px] font-bold text-slate-300 mt-0.5" id="meta-fat">/ 81g</p>
+                        <progress id="progress-fat" class="progress progress-error w-full h-1.5 mt-2" value="0" max="100"></progress>
                     </div>
                 </div>
             </div>
@@ -868,6 +880,31 @@
                 insights.push({ icon: '🌙', text: 'Sono não registrado hoje. Registre para acompanhar o impacto na sua recuperação e performance!', cls: 'insight-sleep' });
             }
 
+            // === HEALTH CONDITIONS ===
+            const healthNotes = (data.notes || []).filter(n => n && n.includes('[SAÚDE]'));
+            if (healthNotes.length > 0) {
+                healthNotes.forEach(note => {
+                    const condition = note.replace('[SAÚDE] ', '').split('(')[0].trim().toLowerCase();
+                    let advice = '';
+                    if (condition.includes('gripe') || condition.includes('resfriado') || condition.includes('febre')) {
+                        advice = 'Priorize <strong>líquidos, vitamina C e zinco</strong>. Sopas, chás, frutas cítricas e mel são aliados. Evite industrializados e aumente a hidratação.';
+                    } else if (condition.includes('dor de garganta') || condition.includes('garganta')) {
+                        advice = 'Prefira alimentos <strong>mornos e macios</strong>: sopas, mingaus, chás com mel. Evite alimentos ácidos, gelados e condimentados.';
+                    } else if (condition.includes('dor de cabeça') || condition.includes('enxaqueca')) {
+                        advice = 'Mantenha boa <strong>hidratação</strong> e evite jejum prolongado. Magnésio (castanhas, chocolate amargo) pode ajudar.';
+                    } else if (condition.includes('dor de estômago') || condition.includes('gastrite') || condition.includes('azia')) {
+                        advice = 'Prefira refeições <strong>leves e fracionadas</strong>. Evite café, frituras, cítricos e alimentos gordurosos.';
+                    } else if (condition.includes('diarreia') || condition.includes('intestino')) {
+                        advice = 'Foque em <strong>hidratação e alimentos de fácil digestão</strong>: arroz, banana, torradas. Evite leite, frituras e fibras em excesso.';
+                    } else if (condition.includes('cansaço') || condition.includes('fadiga') || condition.includes('exaustão')) {
+                        advice = 'Priorize <strong>ferro e B12</strong> (carnes, ovos, folhas escuras). Verifique se está dormindo o suficiente.';
+                    } else {
+                        advice = `Condição registrada. Adapte sua alimentação conforme orientação médica e priorize hidratação e alimentos naturais.`;
+                    }
+                    insights.push({ icon: '🏥', text: `<strong>Alerta de saúde:</strong> ${condition}. ${advice}`, cls: 'insight-warn' });
+                });
+            }
+
             // === OVERALL SCORE ===
             if (insights.length === 0) {
                 insights.push({ icon: '📊', text: 'Dados insuficientes para gerar insights detalhados. Continue registrando suas refeições!', cls: 'insight-info' });
@@ -890,10 +927,22 @@
             document.getElementById('total-protein').innerText = data.summary.ptn + 'g';
             document.getElementById('total-carb').innerText = data.summary.carb + 'g';
             document.getElementById('total-fat').innerText = data.summary.fat + 'g';
-            
-            document.getElementById('progress-protein').value = (data.summary.ptn / CONFIG.metaPtn) * 100;
-            document.getElementById('progress-carb').value = (data.summary.carb / CONFIG.metaCarb) * 100;
-            document.getElementById('progress-fat').value = (data.summary.fat / CONFIG.metaFat) * 100;
+
+            const pctPtnVal = Math.min(100, Math.round((data.summary.ptn / CONFIG.metaPtn) * 100));
+            const pctCarbVal = Math.min(100, Math.round((data.summary.carb / CONFIG.metaCarb) * 100));
+            const pctFatVal = Math.min(100, Math.round((data.summary.fat / CONFIG.metaFat) * 100));
+
+            document.getElementById('pct-protein').innerText = pctPtnVal + '%';
+            document.getElementById('pct-carb').innerText = pctCarbVal + '%';
+            document.getElementById('pct-fat').innerText = pctFatVal + '%';
+
+            document.getElementById('meta-protein').innerText = `/ ${CONFIG.metaPtn}g`;
+            document.getElementById('meta-carb').innerText = `/ ${CONFIG.metaCarb}g`;
+            document.getElementById('meta-fat').innerText = `/ ${CONFIG.metaFat}g`;
+
+            document.getElementById('progress-protein').value = pctPtnVal;
+            document.getElementById('progress-carb').value = pctCarbVal;
+            document.getElementById('progress-fat').value = pctFatVal;
 
             const ptnCal = data.summary.ptn * 4;
             const choCal = data.summary.carb * 4;
@@ -1069,6 +1118,11 @@
                 }
             });
 
+            // Extract health conditions from today's notes
+            const healthConditions = (data.notes || [])
+                .filter(n => n && n.includes('[SAÚDE]'))
+                .map(n => n.replace('[SAÚDE] ', '').trim());
+
             try {
                 const res = await fetch(`${SUPABASE_URL}/functions/v1/suggest-meals`, {
                     method: 'POST',
@@ -1080,7 +1134,8 @@
                         date: selectedDate,
                         remaining,
                         goals: { kcal: CONFIG.metaKcal, ptn: CONFIG.metaPtn, carb: CONFIG.metaCarb, fat: CONFIG.metaFat },
-                        mealHistory
+                        mealHistory,
+                        healthConditions
                     })
                 });
 

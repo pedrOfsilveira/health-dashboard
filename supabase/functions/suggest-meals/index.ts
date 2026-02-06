@@ -57,7 +57,7 @@ serve(async (req) => {
   }
 
   try {
-    const { date, remaining, goals, mealHistory } = await req.json();
+    const { date, remaining, goals, mealHistory, healthConditions } = await req.json();
 
     if (!date || !remaining) {
       return new Response(
@@ -117,6 +117,7 @@ REGRAS:
 - Use tabela TACO/IBGE para estimativas
 - Cada sugestão deve ter nome, descrição curta motivacional, e itens com macros
 - Considere o horário atual para o tipo de refeição apropriado
+- Se o usuário tiver alguma condição de saúde, adapte as sugestões (alimentos que ajudem na recuperação, evite os que podem piorar)
 
 FORMATO DE RESPOSTA:
 {
@@ -145,6 +146,11 @@ ${topFoods || "Sem histórico ainda - sugira opções populares brasileiras"}
 PADRÕES DE REFEIÇÃO:
 ${patternsText || "Sem padrões detectados ainda"}
 
+${healthConditions && healthConditions.length > 0 ? `
+⚠️ CONDIÇÕES DE SAÚDE ATIVAS:
+${healthConditions.join('\n')}
+ADAPTE as sugestões para ajudar na recuperação. Priorize alimentos anti-inflamatórios, ricos em vitaminas e minerais relevantes. Evite alimentos que possam agravar os sintomas.
+` : ''}
 Sugira 2-3 opções de ${timeContext} que ajudem a atingir os macros restantes, priorizando os alimentos que o usuário já consome.`;
 
     const parsed = await callAI(systemPrompt, userPrompt);
