@@ -1,7 +1,7 @@
 {
-  "name": "Bio-Tracker Pedro",
+  "name": "Bio-Tracker",
   "short_name": "BioTracker",
-  "description": "Dashboard de Saúde e Nutrição do Pedro",
+  "description": "Dashboard de Saúde e Nutrição Inteligente",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

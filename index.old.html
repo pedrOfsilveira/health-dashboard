@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bio-Tracker Pedro</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BioTracker">
+    <link rel="apple-touch-icon" href="/public/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/public/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/public/icon-512.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { 
+            --p-color: #10b981;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+        }
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-main); 
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 100px;
+        }
+
+        /* PWA Install Banner */
+        .pwa-backdrop {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 999;
+            display: flex; align-items: flex-end; justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        .pwa-banner {
+            background: white;
+            border-radius: 28px 28px 0 0;
+            padding: 32px 24px 28px;
+            width: 100%; max-width: 480px;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
+            animation: slideUpBanner 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUpBanner { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .pwa-banner-icon {
+            width: 64px; height: 64px;
+            border-radius: 16px;
+            background: #0f172a;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 12px rgba(15,23,42,0.3);
+        }
+        .pwa-install-btn {
+            width: 100%; padding: 14px;
+            background: #0f172a; color: white;
+            border: none; border-radius: 16px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 15px; font-weight: 800;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .pwa-install-btn:active { transform: scale(0.97); opacity: 0.9; }
+        .pwa-dismiss {
+            width: 100%; padding: 10px;
+            background: none; border: none;
+            color: #94a3b8; font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 13px; font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* FAB and Chat Modal */
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 50;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .fab:active { transform: scale(0.9) translateY(2px); }
+
+        .chat-modal {
+            position: fixed;
+            bottom: 85px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85vw;
+            max-width: 400px;
+            max-height: 75dvh;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 50;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            transition: all 0.3s ease;
+        }
+        @media (min-width: 640px) {
+            .chat-modal { left: auto; right: 30px; transform: none; bottom: 100px; width: 400px; }
+            .fab { right: 30px; bottom: 30px; }
+        }
+        .chat-modal.active { display: flex; animation: slideUp 0.3s ease-out; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-header {
+            padding: 16px 20px;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            min-height: 200px;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #f8fafc;
+        }
+
+        .chat-input-area {
+            padding: 16px;
+            background: white;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .msg { 
+            padding: 12px 16px; 
+            border-radius: 20px; 
+            max-width: 85%; 
+            font-size: 0.875rem; 
+            line-height: 1.4;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .msg-user { 
+            align-self: flex-end; 
+            background: #10b981; 
+            color: white; 
+            border-bottom-right-radius: 4px;
+        }
+        .msg-bot { 
+            align-self: flex-start; 
+            background: white; 
+            color: #1e293b; 
+            border: 1px solid #e2e8f0; 
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-date-container {
+            padding: 10px 16px;
+            background: #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .chat-date-input {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #475569;
+            width: 100%;
+            outline: none;
+        }
+
+        .container { width: 100%; max-width: 500px; margin: 0 auto; padding: 16px; }
+        
+        .card-pro { 
+            background: var(--card-bg); 
+            border: 1px solid #e2e8f0; 
+            border-radius: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            padding: 24px; 
+            margin-bottom: 24px; 
+        }
+        
+        .section-title { 
+            font-size: 0.7rem; 
+            font-weight: 800; 
+            color: var(--text-muted); 
+            text-transform: uppercase; 
+            letter-spacing: 0.15em; 
+            margin-bottom: 16px; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px;
+        }
+        .section-title::after { content: ""; flex: 1; height: 1px; background: #e2e8f0; }
+
+        .date-selector {
+            display: flex;
+            overflow-x: auto;
+            gap: 12px;
+            padding: 4px 4px 16px 4px;
+            margin-bottom: 20px;
+            scrollbar-width: none;
+        }
+        .date-selector::-webkit-scrollbar { display: none; }
+        .date-tab {
+            flex: 0 0 auto;
+            padding: 12px 20px;
+            border-radius: 18px;
+            background: #fff;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid #e2e8f0;
+        }
+        .date-tab.active {
+            background: var(--text-main);
+            color: white;
+            border-color: var(--text-main);
+            box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.3);
+            transform: translateY(-1px);
+        }
+
+        progress { border-radius: 99px; }
+        progress::-webkit-progress-bar { background-color: #f1f5f9; border-radius: 99px; }
+        progress::-webkit-progress-value { border-radius: 99px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        .meal-collapse {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            margin-bottom: 14px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .meal-collapse:hover { border-color: #cbd5e1; }
+        .collapse-title { padding: 20px !important; min-height: unset !important; position: relative; }
+        .collapse-content { padding: 0 20px 20px 20px !important; }
+
+        .delete-meal-btn {
+            position: absolute;
+            right: 45px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 20;
+            color: #94a3b8; /* slate-400 */
+            transition: color 0.2s;
+            padding: 8px;
+        }
+        .delete-meal-btn:hover {
+            color: #ef4444; /* red-500 */
+        }
+
+        .sub-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px 0;
+            border-top: 1px dashed #f1f5f9;
+        }
+        .sub-item:first-child { border-top: none; }
+        
+        .tag-micro { font-size: 0.6rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase; }
+
+        .assistant-msg {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 14px 16px;
+            position: relative;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: #475569;
+            border: 1px solid #f1f5f9;
+        }
+        .assistant-msg.insight-good { border-color: #bbf7d0; background: #ecfdf5; color: #166534; }
+        .assistant-msg.insight-warn { border-color: #fde68a; background: #fefce8; color: #854d0e; }
+        .assistant-msg.insight-bad { border-color: #fca5a5; background: #fff1f2; color: #991b1b; }
+        .assistant-msg.insight-info { border-color: #c7d2fe; background: #eef2ff; color: #3730a3; }
+        .assistant-msg.insight-sleep { border-color: #ddd6fe; background: #f5f3ff; color: #5b21b6; }
+
+        .suggestion-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 18px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            border: 1px solid #f1f5f9;
+            transition: all 0.2s;
+        }
+        .suggestion-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); transform: translateY(-1px); }
+        .suggestion-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 0; border-bottom: 1px solid #f8fafc;
+        }
+        .suggestion-item:last-child { border-bottom: none; }
+        .suggest-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white; border: none; border-radius: 16px;
+            padding: 14px 24px; font-weight: 800; font-size: 0.85rem;
+            cursor: pointer; width: 100%; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            letter-spacing: -0.02em;
+        }
+        .suggest-btn:hover { transform: scale(1.02); box-shadow: 0 4px 16px rgba(16,185,129,0.3); }
+        .suggest-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .suggest-btn.loading { animation: pulse 1.5s ease-in-out infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .macro-pill {
+            display: inline-flex; align-items: center; gap: 3px;
+            font-size: 0.6rem; font-weight: 800; padding: 3px 8px;
+            border-radius: 8px; text-transform: uppercase;
+        }
+        .use-suggestion-btn {
+            background: #f0fdf4; color: #059669; border: 1.5px solid #d1fae5;
+            border-radius: 12px; padding: 8px 16px; font-weight: 700;
+            font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
+        }
+        .use-suggestion-btn:hover { background: #059669; color: white; }
+
+        .sleep-badge {
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 0.65rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .loading-overlay { position: fixed; inset: 0; background: #fff; display: flex; align-items: center; justify-content: center; z-index: 100; transition: opacity 0.5s; }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading-overlay">
+        <div class="flex flex-col items-center gap-4">
+            <span class="loading loading-ring loading-lg text-emerald-500"></span>
+            <p id="loading-text" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Sincronizando Log...</p>
+        </div>
+    </div>
+
+    <div class="container opacity-0 transition-opacity duration-700" id="main-content">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8 pt-4">
+            <div>
+                <h1 class="text-2xl font-black text-slate-900 tracking-tight">Bio-Tracker</h1>
+                <p id="display-date-main" class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mt-1">Sábado, 03 de Fevereiro</p>
+            </div>
+            <div class="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            </div>
+        </div>
+
+        <!-- Date Tabs -->
+        <div id="date-tabs" class="date-selector"></div>
+
+        <!-- Metrics Grid -->
+        <div class="card-pro">
+            <div class="section-title">Metas Diárias</div>
+            <div class="flex flex-col gap-6">
+                <!-- Calories -->
+                <div>
+                    <div class="flex justify-between items-end mb-3">
+                        <div>
+                            <span class="text-4xl font-black text-slate-900 tracking-tighter" id="total-kcal">0</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase ml-2 tracking-widest">kcal / <span id="meta-kcal">2914</span></span>
+                        </div>
+                        <div class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg text-xs font-black" id="pct-kcal">0%</div>
+                    </div>
+                    <progress id="progress-kcal" class="progress progress-success w-full h-3" value="0" max="100"></progress>
+                </div>
+
+                <!-- Macros Row -->
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-slate-50 rounded-2xl p-4">
+                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">PTN</p>
+                        <p class="text-lg font-black text-slate-800 leading-tight" id="total-protein">0</p>
+                        <p class="text-[10px] font-bold text-slate-400 mt-0.5">/ <span id="meta-protein">124</span>g</p>
+                        <progress id="progress-protein" class="progress progress-success w-full h-1.5 mt-2" value="0" max="100"></progress>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-4">
+                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">CHO</p>
+                        <p class="text-lg font-black text-slate-800 leading-tight" id="total-carb">0</p>
+                        <p class="text-[10px] font-bold text-slate-400 mt-0.5">/ <span id="meta-carb">421</span>g</p>
+                        <progress id="progress-carb" class="progress progress-warning w-full h-1.5 mt-2" value="0" max="100"></progress>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-4">
+                        <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">FAT</p>
+                        <p class="text-lg font-black text-slate-800 leading-tight" id="total-fat">0</p>
+                        <p class="text-[10px] font-bold text-slate-400 mt-0.5">/ <span id="meta-fat">81</span>g</p>
+                        <progress id="progress-fat" class="progress progress-error w-full h-1.5 mt-2" value="0" max="100"></progress>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sleep Card -->
+        <div class="card-pro">
+            <div class="section-title">Recuperação & Sono</div>
+            <div class="flex items-center gap-5">
+                <div class="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-3xl shadow-sm">🌙</div>
+                <div class="flex-1">
+                    <p class="text-2xl font-black text-slate-900 tracking-tight" id="sleep-duration">--h --m</p>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider" id="sleep-details">Aguardando dados...</p>
+                </div>
+                <div>
+                    <div id="sleep-quality-badge" class="sleep-badge bg-slate-100 text-slate-400">---</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="section-title">Composição da Dieta</div>
+        <div class="card-pro">
+            <div class="w-full max-w-[240px] aspect-square mx-auto relative">
+                <canvas id="macroChart"></canvas>
+            </div>
+            <div id="chart-legend" class="mt-6 grid grid-cols-3 gap-2">
+                <!-- Legend items injected by JS -->
+            </div>
+        </div>
+
+        <!-- Meals Section -->
+        <div class="section-title">Diário Nutricional</div>
+        <div id="meals-container" class="mb-8">
+            <!-- Expandable cards will be injected here -->
+        </div>
+
+        <!-- AI Health Insights -->
+        <div id="insights-section" class="mb-10">
+            <div class="section-title">AI Health Insights</div>
+            <div id="insights-content" class="space-y-3">
+                <div class="assistant-msg">Processando padrões metabólicos...</div>
+            </div>
+        </div>
+
+        <!-- AI Meal Suggestions -->
+        <div id="suggestions-section" class="mb-10">
+            <div class="section-title">Sugestões Inteligentes</div>
+            <div class="card-pro">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center text-2xl shadow-sm">🧠</div>
+                    <div class="flex-1">
+                        <h3 class="font-black text-slate-800 text-sm tracking-tight">O que comer agora?</h3>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Baseado nos seus hábitos e macros restantes</p>
+                    </div>
+                </div>
+                <div id="remaining-macros-preview" class="flex gap-2 mb-4 flex-wrap"></div>
+                <button id="suggest-btn" class="suggest-btn" onclick="getSuggestions()">
+                    <span>✨</span>
+                    <span>Gerar Sugestões Personalizadas</span>
+                </button>
+            </div>
+            <div id="suggestions-container" class="space-y-4 mt-4"></div>
+        </div>
+
+        <footer class="pb-16 text-center">
+            <div class="w-8 h-1 bg-slate-200 mx-auto rounded-full mb-6"></div>
+            <p class="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">Health Intelligence System</p>
+        </footer>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div id="pwa-install-popup" class="pwa-backdrop" style="display:none" onclick="if(event.target===this)dismissInstall()">
+        <div class="pwa-banner">
+            <div class="flex items-center gap-4 mb-5">
+                <div class="pwa-banner-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-black text-slate-900 tracking-tight">Instalar Bio-Tracker</h3>
+                    <p class="text-xs text-slate-400 font-medium mt-0.5">Acesso rápido direto da sua tela inicial</p>
+                </div>
+            </div>
+            <div class="flex flex-col gap-3 mb-1">
+                <div class="flex items-center gap-3 text-xs text-slate-500">
+                    <span class="text-base">⚡</span> Abre instantaneamente, como um app nativo
+                </div>
+                <div class="flex items-center gap-3 text-xs text-slate-500">
+                    <span class="text-base">📴</span> Funciona offline com dados em cache
+                </div>
+                <div class="flex items-center gap-3 text-xs text-slate-500">
+                    <span class="text-base">🔔</span> Tela cheia, sem barra do navegador
+                </div>
+            </div>
+            <div class="mt-5 flex flex-col gap-2">
+                <button class="pwa-install-btn" onclick="installPWA()">Instalar App</button>
+                <button class="pwa-dismiss" onclick="dismissInstall()">Agora não</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAB and Chat -->
+    <div class="fab" onclick="toggleChat()">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+    </div>
+
+    <div class="chat-modal" id="chatModal">
+        <div class="chat-header">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span class="text-sm font-bold tracking-tight">Health Assistant</span>
+            </div>
+            <button onclick="toggleChat()" class="p-1 hover:bg-slate-800 rounded-lg transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="chat-date-container">
+            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Data do Registro</label>
+            <input type="date" id="chat-date" class="chat-date-input">
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="msg msg-bot">Olá, Pedro! O que deseja registrar hoje? Você pode descrever sua refeição ou seu sono.</div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" class="input input-bordered flex-1 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-emerald-500 text-sm h-12" placeholder="Descreva sua refeição...">
+            <button onclick="sendMessage()" class="btn btn-square bg-slate-900 hover:bg-slate-800 text-white border-none rounded-2xl w-12 h-12">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 rotate-90" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let allData = {};
+        let selectedDate = null;
+        let macroChart = null;
+
+        const CONFIG = {
+            metaKcal: 2914,
+            metaPtn: 124,
+            metaCarb: 421,
+            metaFat: 81
+        };
+
+        const SUPABASE_URL = "https://cjlowdjmqdsgigstagoi.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqbG93ZGptcWRzZ2lnc3RhZ29pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDM0NzQxMSwiZXhwIjoyMDg1OTIzNDExfQ.D1kfCPgH5Hlw9Mkxj9b74XnHFRG5HIFh1gOftpqB_g0";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function toggleChat() {
+            const modal = document.getElementById('chatModal');
+            modal.classList.toggle('active');
+            if (modal.classList.contains('active')) {
+                if (selectedDate) {
+                    document.getElementById('chat-date').value = selectedDate;
+                } else if (!document.getElementById('chat-date').value) {
+                    document.getElementById('chat-date').value = new Date().toISOString().split('T')[0];
+                }
+                document.getElementById('chatInput').focus();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const date = document.getElementById('chat-date').value;
+            const text = input.value.trim();
+            if (!text) return;
+
+            addMessage(text, 'user');
+            input.value = '';
+
+            const statusMsg = addMessage("⏳ Processando com IA...", 'bot', 'status-msg');
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/functions/v1/process-entry`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    },
+                    body: JSON.stringify({ text, date })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    statusMsg.innerText = result.message;
+                    statusMsg.classList.add('font-bold');
+                    statusMsg.style.color = '#10b981';
+                    // Recarrega os dados e seleciona o dia
+                    await loadData();
+                    if (allData[date]) {
+                        selectDate(date);
+                    }
+                } else {
+                    statusMsg.innerText = "❌ Erro: " + (result.error || "Falha no processamento");
+                    statusMsg.style.color = '#ef4444';
+                }
+            } catch (e) {
+                console.error("Erro no envio:", e);
+                statusMsg.innerText = "❌ Erro de rede: " + e.message;
+                statusMsg.style.color = '#ef4444';
+            }
+        }
+
+        function addMessage(text, side, extraClass = '') {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = `msg msg-${side} ${extraClass}`;
+            div.innerText = text;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div;
+        }
+
+        function subscribeToLogs() {
+            supabaseClient
+                .channel('schema-db-changes')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'chat_logs' },
+                    (payload) => {
+                        console.log('Chat log change:', payload);
+                        if (payload.eventType === 'INSERT') {
+                            // Opcional: mostrar que algo novo foi recebido se não foi o próprio user
+                        } else if (payload.eventType === 'UPDATE') {
+                            const { status, response, text } = payload.new;
+                            if (status === 'processing') {
+                                addMessage("🤖 Alfred: Decompondo macros para '" + text + "'...", 'bot', 'text-[10px] italic opacity-70');
+                            } else if (status === 'completed') {
+                                addMessage("✅ Alfred: Registro concluído! Atualizando seu dashboard...", 'bot', 'font-bold text-emerald-600');
+                                loadData(); // Atualiza os dados instantaneamente
+                            }
+                        }
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'days' },
+                    () => loadData()
+                )
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'meals' },
+                    () => loadData()
+                )
+                .subscribe();
+        }
+
+        async function loadData() {
+            console.log('Iniciando carga de dados do Supabase...');
+            const loadingText = document.getElementById('loading-text');
+            try {
+                const headers = {
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": `Bearer ${SUPABASE_KEY}`
+                };
+
+                const resDays = await fetch(`${SUPABASE_URL}/rest/v1/days?select=*&order=date.desc`, { headers });
+                if (!resDays.ok) throw new Error(`Erro Supabase Days: ${resDays.status}`);
+                const days = await resDays.json();
+
+                const resMeals = await fetch(`${SUPABASE_URL}/rest/v1/meals?select=*,meal_items(*)&order=created_at.asc`, { headers });
+                if (!resMeals.ok) throw new Error(`Erro Supabase Meals: ${resMeals.status}`);
+                const mealsRaw = await resMeals.json();
+
+                transformSupabaseData(days, mealsRaw);
+            } catch (error) {
+                console.error('Erro no loadData:', error);
+                loadingText.innerHTML = `<span class="text-red-500">Erro de Conexão</span><br>
+                                        <span class="text-[10px] text-slate-400 normal-case mt-2">${error.message}</span>`;
+            }
+        }
+
+        function transformSupabaseData(days, mealsRaw) {
+            const dataByDate = {};
+            
+            days.forEach(day => {
+                dataByDate[day.date] = {
+                    date: day.date,
+                    summary: {
+                        kcal: day.kcal_total || 0,
+                        ptn: day.ptn_total || 0,
+                        carb: day.carb_total || 0,
+                        fat: day.fat_total || 0
+                    },
+                    sleep: {
+                        start: day.sleep_start,
+                        end: day.sleep_end,
+                        quality: day.sleep_quality || 'BOA',
+                        hours: 0,
+                        minutes: 0
+                    },
+                    meals: [],
+                    notes: day.notes ? [day.notes] : []
+                };
+
+                if (day.sleep_start && day.sleep_end) {
+                    const [h1, m1] = day.sleep_start.split(':').map(Number);
+                    const [h2, m2] = day.sleep_end.split(':').map(Number);
+                    let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+                    if (diff < 0) diff += 24 * 60;
+                    dataByDate[day.date].sleep.hours = Math.floor(diff / 60);
+                    dataByDate[day.date].sleep.minutes = diff % 60;
+                }
+            });
+
+            mealsRaw.forEach(m => {
+                if (dataByDate[m.date]) {
+                    dataByDate[m.date].meals.push({
+                        id: m.id,
+                        name: m.name,
+                        kcal: m.kcal,
+                        ptn: m.ptn,
+                        items: (m.meal_items || []).map(it => ({
+                            name: it.name,
+                            kcal: it.kcal,
+                            ptn: it.ptn
+                        }))
+                    });
+                }
+            });
+
+            allData = dataByDate;
+            const dates = Object.keys(allData).sort().reverse();
+            if (dates.length > 0) {
+                renderDateSelector(dates);
+                selectDate(dates[0]);
+            } else {
+                document.getElementById('loading-text').innerText = 'Nenhum registro na nuvem.';
+            }
+        }
+
+        function renderDateSelector(dates) {
+            const container = document.getElementById('date-tabs');
+            container.innerHTML = '';
+            dates.forEach(date => {
+                const dateObj = new Date(date + 'T12:00:00');
+                const day = dateObj.getDate().toString().padStart(2, '0');
+                const month = dateObj.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+                const tab = document.createElement('div');
+                tab.className = 'date-tab';
+                tab.id = `tab-${date}`;
+                tab.innerHTML = `${day} <span class="opacity-40 text-[10px]">${month}</span>`;
+                tab.onclick = () => selectDate(date);
+                container.appendChild(tab);
+            });
+        }
+
+        function selectDate(date) {
+            selectedDate = date;
+            document.querySelectorAll('.date-tab').forEach(t => t.classList.remove('active'));
+            const activeTab = document.getElementById(`tab-${date}`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+                activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }
+            updateUI(allData[date]);
+        }
+
+        async function deleteMeal(date, mealId, elementId) {
+            if (!confirm(`Deseja realmente excluir esta refeição?`)) return;
+
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.style.opacity = '0.5';
+                element.style.pointerEvents = 'none';
+                const title = element.querySelector('h3');
+                if (title) title.innerText = 'Excluindo...';
+            }
+
+            try {
+                // 1. Buscar dados da refeição antes de deletar
+                const mealRes = await fetch(`${SUPABASE_URL}/rest/v1/meals?id=eq.${mealId}&select=kcal,ptn,carb,fat`, {
+                    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+                });
+                const mealData = await mealRes.json();
+                const meal = mealData[0] || { kcal: 0, ptn: 0, carb: 0, fat: 0 };
+
+                // 2. Deletar a refeição (meal_items são deletados em cascata)
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/meals?id=eq.${mealId}`, {
+                    method: 'DELETE',
+                    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+                });
+
+                if (!res.ok) throw new Error('Falha ao excluir no Supabase');
+
+                // 3. Subtrair macros do dia
+                const dayRes = await fetch(`${SUPABASE_URL}/rest/v1/days?date=eq.${date}&select=kcal_total,ptn_total,carb_total,fat_total`, {
+                    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+                });
+                const dayData = await dayRes.json();
+                if (dayData[0]) {
+                    const d = dayData[0];
+                    await fetch(`${SUPABASE_URL}/rest/v1/days?date=eq.${date}`, {
+                        method: 'PATCH',
+                        headers: {
+                            "apikey": SUPABASE_KEY,
+                            "Authorization": `Bearer ${SUPABASE_KEY}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            kcal_total: Math.max(0, (d.kcal_total || 0) - (meal.kcal || 0)),
+                            ptn_total: Math.max(0, (d.ptn_total || 0) - (meal.ptn || 0)),
+                            carb_total: Math.max(0, (d.carb_total || 0) - (meal.carb || 0)),
+                            fat_total: Math.max(0, (d.fat_total || 0) - (meal.fat || 0))
+                        })
+                    });
+                }
+
+                // 4. Animar remoção e recarregar UI
+                if (element) {
+                    element.style.transform = 'scale(0.9)';
+                    element.style.opacity = '0';
+                    setTimeout(() => {
+                        element.remove();
+                        loadData();
+                    }, 300);
+                } else {
+                    loadData();
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Erro ao excluir: ' + error.message);
+                if (element) {
+                    element.style.opacity = '1';
+                    element.style.pointerEvents = 'auto';
+                }
+            }
+        }
+
+        function getItemIcon(name) {
+            name = name.toLowerCase();
+            if (name.includes('arroz')) return '🍚';
+            if (name.includes('feijão')) return '🫘';
+            if (name.includes('carne') || name.includes('bife') || name.includes('almôndega')) return '🥩';
+            if (name.includes('frango') || name.includes('strogonoff')) return '🍗';
+            if (name.includes('salada') || name.includes('tomate')) return '🥗';
+            if (name.includes('banana') || name.includes('fruta')) return '🍌';
+            if (name.includes('shake') || name.includes('hipercalórico')) return '🥤';
+            if (name.includes('pão') || name.includes('pancho') || name.includes('salsicha')) return '🌭';
+            if (name.includes('batata')) return '🍟';
+            if (name.includes('sorvete') || name.includes('doce') || name.includes('rapadura')) return '🍦';
+            if (name.includes('leite')) return '🥛';
+            if (name.includes('massa')) return '🍝';
+            return '🍽️';
+        }
+
+        function generateInsights(data) {
+            const insights = [];
+            const kcal = data.summary.kcal;
+            const ptn = data.summary.ptn;
+            const carb = data.summary.carb;
+            const fat = data.summary.fat;
+            const pctKcal = Math.round((kcal / CONFIG.metaKcal) * 100);
+            const pctPtn = Math.round((ptn / CONFIG.metaPtn) * 100);
+            const pctCarb = Math.round((carb / CONFIG.metaCarb) * 100);
+            const pctFat = Math.round((fat / CONFIG.metaFat) * 100);
+            const mealCount = data.meals.length;
+            const hasSleep = !!data.sleep.start;
+
+            // No data at all
+            if (kcal === 0 && mealCount === 0) {
+                insights.push({ icon: '📋', text: 'Nenhuma refeição registrada hoje. Use o chat para registrar o que você comeu!', cls: 'insight-info' });
+                if (!hasSleep) insights.push({ icon: '🌙', text: 'Sono também não registrado. Lembre de informar quando dormiu e acordou.', cls: 'insight-sleep' });
+                return insights.map(i => `<div class="assistant-msg ${i.cls}"><span class="mr-2">${i.icon}</span>${i.text}</div>`).join('');
+            }
+
+            // === CALORIE INSIGHTS ===
+            if (pctKcal >= 95 && pctKcal <= 110) {
+                insights.push({ icon: '🎯', text: `Meta calórica atingida com precisão! <strong>${kcal.toLocaleString('pt-BR')} kcal</strong> (${pctKcal}% da meta). Consistência é o caminho.`, cls: 'insight-good' });
+            } else if (pctKcal > 110) {
+                const excess = kcal - CONFIG.metaKcal;
+                insights.push({ icon: '🔥', text: `Superávit de <strong>${excess} kcal</strong> (${pctKcal}% da meta). ${excess > 500 ? 'Se não foi dia de treino pesado, considere ajustar amanhã.' : 'Aceitável se houve atividade física intensa.'}`, cls: excess > 500 ? 'insight-warn' : 'insight-info' });
+            } else if (pctKcal >= 70) {
+                const deficit = CONFIG.metaKcal - kcal;
+                insights.push({ icon: '📉', text: `Déficit de <strong>${deficit} kcal</strong> (${pctKcal}% da meta). ${mealCount < 3 ? 'Ainda dá tempo de completar com mais uma refeição.' : 'Considere um lanche rico em nutrientes.'}`, cls: 'insight-warn' });
+            } else if (pctKcal > 0) {
+                insights.push({ icon: '⚠️', text: `Apenas <strong>${pctKcal}%</strong> da meta calórica atingida (${kcal} kcal). Déficit grande pode prejudicar recuperação e performance.`, cls: 'insight-bad' });
+            }
+
+            // === PROTEIN INSIGHTS ===
+            if (pctPtn >= 90) {
+                insights.push({ icon: '💪', text: `Proteína excelente: <strong>${ptn}g</strong> (${pctPtn}% da meta). Síntese muscular garantida.`, cls: 'insight-good' });
+            } else if (pctPtn >= 60) {
+                const diff = CONFIG.metaPtn - ptn;
+                insights.push({ icon: '🥩', text: `Proteína em <strong>${pctPtn}%</strong> da meta (faltam ${diff}g). ${diff <= 30 ? 'Um shake ou iogurte grego resolve!' : 'Priorize carnes magras ou ovos na próxima refeição.'}`, cls: 'insight-warn' });
+            } else if (ptn > 0) {
+                insights.push({ icon: '🚨', text: `Proteína muito baixa: <strong>${ptn}g/${CONFIG.metaPtn}g</strong> (${pctPtn}%). Risco de perda muscular em déficit prolongado.`, cls: 'insight-bad' });
+            }
+
+            // === MACRO BALANCE ===
+            const ptnCal = ptn * 4;
+            const choCal = carb * 4;
+            const fatCal = fat * 9;
+            const totalMacroCal = ptnCal + choCal + fatCal;
+            if (totalMacroCal > 0) {
+                const fatPct = Math.round(fatCal / totalMacroCal * 100);
+                const ptnPct = Math.round(ptnCal / totalMacroCal * 100);
+                if (fatPct > 40) {
+                    insights.push({ icon: '🫒', text: `Gordura representando <strong>${fatPct}%</strong> das calorias. O ideal é manter abaixo de 35%. Reduza frituras e opte por proteínas magras.`, cls: 'insight-warn' });
+                }
+                if (ptnPct < 15 && ptn > 0) {
+                    insights.push({ icon: '⚖️', text: `Proporção de proteína baixa (<strong>${ptnPct}%</strong> das calorias). Aumente fontes proteicas para melhor saciedade e composição corporal.`, cls: 'insight-warn' });
+                }
+            }
+
+            // === MEAL PATTERN ===
+            if (mealCount === 1) {
+                insights.push({ icon: '🍽️', text: 'Apenas 1 refeição registrada. Distribuir em 3-5 refeições melhora absorção de nutrientes e energia estável.', cls: 'insight-info' });
+            } else if (mealCount >= 4) {
+                insights.push({ icon: '✅', text: `<strong>${mealCount} refeições</strong> registradas — boa distribuição alimentar ao longo do dia!`, cls: 'insight-good' });
+            }
+
+            // === SLEEP INSIGHTS ===
+            if (hasSleep) {
+                const hours = data.sleep.hours;
+                const quality = data.sleep.quality;
+                if (hours >= 7 && hours <= 9) {
+                    insights.push({ icon: '😴', text: `Sono de <strong>${hours}h${data.sleep.minutes > 0 ? data.sleep.minutes + 'm' : ''}</strong> — dentro da faixa ideal (7-9h). ${quality && quality.includes('BOA') ? 'Qualidade boa relatada. Excelente recuperação!' : ''}`, cls: 'insight-good' });
+                } else if (hours < 7 && hours > 0) {
+                    insights.push({ icon: '⏰', text: `Sono de apenas <strong>${hours}h${data.sleep.minutes > 0 ? data.sleep.minutes + 'm' : ''}</strong>. Abaixo das 7h recomendadas — impacta recuperação muscular, apetite e foco.`, cls: 'insight-bad' });
+                } else if (hours > 9) {
+                    insights.push({ icon: '🛌', text: `Sono de <strong>${hours}h${data.sleep.minutes > 0 ? data.sleep.minutes + 'm' : ''}</strong> — acima de 9h pode indicar cansaço excessivo. Avalie qualidade do sono.`, cls: 'insight-info' });
+                }
+                if (quality && !quality.includes('BOA') && hours >= 7) {
+                    insights.push({ icon: '💤', text: `Qualidade do sono: <strong>${quality}</strong>. Mesmo com duração adequada, sono de baixa qualidade prejudica a recuperação. Avalie ambiente, telas e cafeína.`, cls: 'insight-warn' });
+                }
+            } else if (kcal > 0) {
+                insights.push({ icon: '🌙', text: 'Sono não registrado hoje. Registre para acompanhar o impacto na sua recuperação e performance!', cls: 'insight-sleep' });
+            }
+
+            // === HEALTH CONDITIONS ===
+            const healthNotes = (data.notes || []).filter(n => n && n.includes('[SAÚDE]'));
+            if (healthNotes.length > 0) {
+                healthNotes.forEach(note => {
+                    const condition = note.replace('[SAÚDE] ', '').split('(')[0].trim().toLowerCase();
+                    let advice = '';
+                    if (condition.includes('gripe') || condition.includes('resfriado') || condition.includes('febre')) {
+                        advice = 'Priorize <strong>líquidos, vitamina C e zinco</strong>. Sopas, chás, frutas cítricas e mel são aliados. Evite industrializados e aumente a hidratação.';
+                    } else if (condition.includes('dor de garganta') || condition.includes('garganta')) {
+                        advice = 'Prefira alimentos <strong>mornos e macios</strong>: sopas, mingaus, chás com mel. Evite alimentos ácidos, gelados e condimentados.';
+                    } else if (condition.includes('dor de cabeça') || condition.includes('enxaqueca')) {
+                        advice = 'Mantenha boa <strong>hidratação</strong> e evite jejum prolongado. Magnésio (castanhas, chocolate amargo) pode ajudar.';
+                    } else if (condition.includes('dor de estômago') || condition.includes('gastrite') || condition.includes('azia')) {
+                        advice = 'Prefira refeições <strong>leves e fracionadas</strong>. Evite café, frituras, cítricos e alimentos gordurosos.';
+                    } else if (condition.includes('diarreia') || condition.includes('intestino')) {
+                        advice = 'Foque em <strong>hidratação e alimentos de fácil digestão</strong>: arroz, banana, torradas. Evite leite, frituras e fibras em excesso.';
+                    } else if (condition.includes('cansaço') || condition.includes('fadiga') || condition.includes('exaustão')) {
+                        advice = 'Priorize <strong>ferro e B12</strong> (carnes, ovos, folhas escuras). Verifique se está dormindo o suficiente.';
+                    } else {
+                        advice = `Condição registrada. Adapte sua alimentação conforme orientação médica e priorize hidratação e alimentos naturais.`;
+                    }
+                    insights.push({ icon: '🏥', text: `<strong>Alerta de saúde:</strong> ${condition}. ${advice}`, cls: 'insight-warn' });
+                });
+            }
+
+            // === OVERALL SCORE ===
+            if (insights.length === 0) {
+                insights.push({ icon: '📊', text: 'Dados insuficientes para gerar insights detalhados. Continue registrando suas refeições!', cls: 'insight-info' });
+            }
+
+            return insights.map(i => `<div class="assistant-msg ${i.cls}"><span class="mr-2">${i.icon}</span>${i.text}</div>`).join('');
+        }
+
+        function updateUI(data) {
+            if (!data) return;
+
+            const dateObj = new Date(data.date + 'T12:00:00');
+            document.getElementById('display-date-main').innerText = dateObj.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+            document.getElementById('total-kcal').innerText = data.summary.kcal.toLocaleString('pt-BR');
+            const pPct = Math.min(100, Math.round((data.summary.kcal / CONFIG.metaKcal) * 100));
+            document.getElementById('pct-kcal').innerText = pPct + '%';
+            document.getElementById('progress-kcal').value = pPct;
+
+            document.getElementById('total-protein').innerText = data.summary.ptn;
+            document.getElementById('total-carb').innerText = data.summary.carb;
+            document.getElementById('total-fat').innerText = data.summary.fat;
+
+            const pctPtnVal = Math.min(100, Math.round((data.summary.ptn / CONFIG.metaPtn) * 100));
+            const pctCarbVal = Math.min(100, Math.round((data.summary.carb / CONFIG.metaCarb) * 100));
+            const pctFatVal = Math.min(100, Math.round((data.summary.fat / CONFIG.metaFat) * 100));
+
+            document.getElementById('meta-protein').innerText = CONFIG.metaPtn;
+            document.getElementById('meta-carb').innerText = CONFIG.metaCarb;
+            document.getElementById('meta-fat').innerText = CONFIG.metaFat;
+
+            document.getElementById('progress-protein').value = pctPtnVal;
+            document.getElementById('progress-carb').value = pctCarbVal;
+            document.getElementById('progress-fat').value = pctFatVal;
+
+            const ptnCal = data.summary.ptn * 4;
+            const choCal = data.summary.carb * 4;
+            const fatCal = data.summary.fat * 9;
+            const total = (ptnCal + choCal + fatCal) || 1;
+
+            const chartData = {
+                labels: ['Proteína', 'Carbo', 'Gordura'],
+                datasets: [{
+                    data: [ptnCal, choCal, fatCal],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                    borderWidth: 0,
+                    cutout: '75%'
+                }]
+            };
+
+            const legendContainer = document.getElementById('chart-legend');
+            legendContainer.innerHTML = [
+                { label: 'PTN', val: data.summary.ptn + 'g', color: 'bg-emerald-500', pct: Math.round(ptnCal/total*100) },
+                { label: 'CHO', val: data.summary.carb + 'g', color: 'bg-amber-500', pct: Math.round(choCal/total*100) },
+                { label: 'FAT', val: data.summary.fat + 'g', color: 'bg-red-500', pct: Math.round(fatCal/total*100) }
+            ].map(item => `
+                <div class="flex flex-col items-center">
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <div class="w-1.5 h-1.5 rounded-full ${item.color}"></div>
+                        <span class="text-[9px] font-black text-slate-400 tracking-tighter">${item.label}</span>
+                    </div>
+                    <p class="text-[11px] font-black text-slate-700">${item.val}</p>
+                    <p class="text-[8px] font-bold text-slate-400">${item.pct}%</p>
+                </div>
+            `).join('');
+
+            if (macroChart) {
+                macroChart.data = chartData;
+                macroChart.update();
+            } else {
+                macroChart = new Chart(document.getElementById('macroChart'), {
+                    type: 'doughnut',
+                    data: chartData,
+                    options: {
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: true },
+                            datalabels: {
+                                color: '#fff',
+                                font: { weight: 'bold', size: 10 },
+                                formatter: (value, ctx) => {
+                                    let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                    let pct = Math.round(value / sum * 100);
+                                    return pct > 5 ? pct + '%' : '';
+                                }
+                            }
+                        },
+                        responsive: true,
+                        maintainAspectRatio: false
+                    },
+                    plugins: [ChartDataLabels]
+                });
+            }
+
+            const badge = document.getElementById('sleep-quality-badge');
+            if (data.sleep.start) {
+                document.getElementById('sleep-duration').innerText = `${data.sleep.hours}h ${data.sleep.minutes}m`;
+                document.getElementById('sleep-details').innerText = `${data.sleep.start} às ${data.sleep.end}`;
+                const q = data.sleep.quality;
+                badge.innerText = q;
+                badge.className = `sleep-badge ${q.includes('BOA') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`;
+            } else {
+                document.getElementById('sleep-duration').innerText = '--h --m';
+                document.getElementById('sleep-details').innerText = 'Não registrado';
+                badge.innerText = 'OFF';
+                badge.className = 'sleep-badge bg-slate-100 text-slate-400';
+            }
+
+            const mealsContainer = document.getElementById('meals-container');
+            mealsContainer.innerHTML = '';
+            data.meals.forEach((meal, idx) => {
+                const mealIcon = getItemIcon(meal.name);
+                const itemsHtml = meal.items.map(item => `
+                    <div class="sub-item">
+                        <span class="mr-4 text-xl">${getItemIcon(item.name)}</span>
+                        <div class="flex-1">
+                            <p class="font-bold text-slate-700 text-xs">${item.name}</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="tag-micro bg-slate-100 text-slate-500">${item.kcal} kcal</span>
+                                <span class="tag-micro bg-emerald-50 text-emerald-600">${item.ptn}g ptn</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                mealsContainer.innerHTML += `
+                    <div id="meal-${idx}" class="meal-collapse collapse collapse-arrow">
+                        <input type="checkbox" ${idx === 0 ? 'checked' : ''} /> 
+                        <div class="collapse-title flex items-center gap-5">
+                            <div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-2xl shadow-inner">${mealIcon}</div>
+                            <div class="flex-1">
+                                <h3 class="font-black text-slate-800 text-sm tracking-tight">${meal.name}</h3>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${meal.kcal} kcal</span>
+                                    <div class="w-1 h-1 rounded-full bg-slate-200"></div>
+                                    <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-tighter">${meal.ptn}g ptn</span>
+                                </div>
+                            </div>
+                            <button onclick="event.stopPropagation(); deleteMeal('${data.date}', ${meal.id}, 'meal-${idx}')" class="delete-meal-btn" title="Excluir refeição">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="collapse-content"> 
+                            <div class="pt-2 border-t border-slate-50">
+                                ${itemsHtml || '<p class="text-xs text-slate-400 italic">Sem sub-itens detalhados.</p>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Generate personalized insights
+            const insightsContent = document.getElementById('insights-content');
+            insightsContent.innerHTML = generateInsights(data);
+
+            // Update remaining macros preview for suggestions
+            const remKcal = Math.max(0, CONFIG.metaKcal - data.summary.kcal);
+            const remPtn = Math.max(0, CONFIG.metaPtn - data.summary.ptn);
+            const remCarb = Math.max(0, CONFIG.metaCarb - data.summary.carb);
+            const remFat = Math.max(0, CONFIG.metaFat - data.summary.fat);
+            document.getElementById('remaining-macros-preview').innerHTML = `
+                <span class="macro-pill bg-slate-100 text-slate-600">Faltam: ${remKcal} kcal</span>
+                <span class="macro-pill bg-emerald-50 text-emerald-700">${remPtn}g ptn</span>
+                <span class="macro-pill bg-amber-50 text-amber-700">${remCarb}g carb</span>
+                <span class="macro-pill bg-red-50 text-red-600">${remFat}g fat</span>
+            `;
+            // Clear previous suggestions on day change
+            document.getElementById('suggestions-container').innerHTML = '';
+
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('main-content').classList.remove('opacity-0');
+            }, 500);
+        }
+
+        async function getSuggestions() {
+            const btn = document.getElementById('suggest-btn');
+            const container = document.getElementById('suggestions-container');
+            
+            if (!selectedDate || !allData[selectedDate]) {
+                container.innerHTML = '<div class="assistant-msg insight-warn">Selecione um dia com dados para gerar sugestões.</div>';
+                return;
+            }
+
+            const data = allData[selectedDate];
+            btn.disabled = true;
+            btn.classList.add('loading');
+            btn.innerHTML = '<span>🔄</span><span>Analisando seus padrões alimentares...</span>';
+            container.innerHTML = '';
+
+            // Calculate remaining macros
+            const remaining = {
+                kcal: Math.max(0, CONFIG.metaKcal - data.summary.kcal),
+                ptn: Math.max(0, CONFIG.metaPtn - data.summary.ptn),
+                carb: Math.max(0, CONFIG.metaCarb - data.summary.carb),
+                fat: Math.max(0, CONFIG.metaFat - data.summary.fat)
+            };
+
+            // Gather meal history from all days
+            const mealHistory = [];
+            Object.values(allData).forEach(day => {
+                if (day.meals) {
+                    day.meals.forEach(m => mealHistory.push(m));
+                }
+            });
+
+            // Extract health conditions from today's notes
+            const healthConditions = (data.notes || [])
+                .filter(n => n && n.includes('[SAÚDE]'))
+                .map(n => n.replace('[SAÚDE] ', '').trim());
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/functions/v1/suggest-meals`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    },
+                    body: JSON.stringify({
+                        date: selectedDate,
+                        remaining,
+                        goals: { kcal: CONFIG.metaKcal, ptn: CONFIG.metaPtn, carb: CONFIG.metaCarb, fat: CONFIG.metaFat },
+                        mealHistory,
+                        healthConditions
+                    })
+                });
+
+                const result = await res.json();
+
+                if (result.success && result.suggestions) {
+                    let html = '';
+
+                    result.suggestions.forEach((s, idx) => {
+                        const itemsHtml = (s.items || []).map(item => `
+                            <div class="suggestion-item">
+                                <span class="text-lg">${getItemIcon(item.name)}</span>
+                                <div class="flex-1">
+                                    <p class="font-bold text-slate-700 text-xs">${item.name}</p>
+                                    <p class="text-[10px] text-slate-400 font-medium">${item.amount || ''}</p>
+                                </div>
+                                <div class="flex gap-1">
+                                    <span class="macro-pill bg-slate-100 text-slate-500">${item.kcal} kcal</span>
+                                    <span class="macro-pill bg-emerald-50 text-emerald-600">${item.ptn}g P</span>
+                                </div>
+                            </div>
+                        `).join('');
+
+                        const total = s.total || {};
+                        html += `
+                            <div class="suggestion-card">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <span class="text-2xl">${s.emoji || '🍽️'}</span>
+                                    <div class="flex-1">
+                                        <h4 class="font-black text-slate-800 text-sm">${s.name}</h4>
+                                        <p class="text-[10px] text-slate-400 font-medium mt-0.5">${s.description || ''}</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 mb-3 flex-wrap">
+                                    <span class="macro-pill bg-slate-100 text-slate-600">${total.kcal || 0} kcal</span>
+                                    <span class="macro-pill bg-emerald-50 text-emerald-700">${total.ptn || 0}g ptn</span>
+                                    <span class="macro-pill bg-amber-50 text-amber-700">${total.carb || 0}g carb</span>
+                                    <span class="macro-pill bg-red-50 text-red-600">${total.fat || 0}g fat</span>
+                                </div>
+                                ${itemsHtml}
+                                <button class="use-suggestion-btn mt-3 w-full" onclick="useSuggestion(${idx})">
+                                    📝 Registrar esta refeição
+                                </button>
+                            </div>
+                        `;
+                    });
+
+                    if (result.tip) {
+                        html += `<div class="assistant-msg insight-info" style="margin-top: 8px;">💡 ${result.tip}</div>`;
+                    }
+
+                    container.innerHTML = html;
+                    // Store suggestions for quick-register
+                    window._lastSuggestions = result.suggestions;
+                } else {
+                    container.innerHTML = `<div class="assistant-msg insight-warn">Não foi possível gerar sugestões: ${result.error || 'Erro desconhecido'}</div>`;
+                }
+            } catch (e) {
+                console.error('Suggestion error:', e);
+                container.innerHTML = `<div class="assistant-msg insight-bad">❌ Erro de rede: ${e.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+                btn.innerHTML = '<span>✨</span><span>Gerar Sugestões Personalizadas</span>';
+            }
+        }
+
+        async function useSuggestion(idx) {
+            const suggestions = window._lastSuggestions;
+            if (!suggestions || !suggestions[idx]) return;
+
+            const s = suggestions[idx];
+            const items = (s.items || []).map(i => i.name + (i.amount ? ` ${i.amount}` : '')).join(', ');
+            const text = `${s.name}: ${items}`;
+            const date = selectedDate || new Date().toISOString().split('T')[0];
+
+            // Send to process-entry as if user typed it
+            const statusMsg = addMessage(`📝 Registrando: ${s.name}...`, 'bot', 'status-msg');
+            document.getElementById('chatModal').classList.add('active');
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/functions/v1/process-entry`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    },
+                    body: JSON.stringify({ text, date })
+                });
+
+                const result = await res.json();
+                if (result.success) {
+                    statusMsg.innerText = result.message;
+                    statusMsg.classList.add('font-bold');
+                    statusMsg.style.color = '#10b981';
+                    await loadData();
+                    if (allData[date]) selectDate(date);
+                } else {
+                    statusMsg.innerText = '❌ Erro: ' + (result.error || 'Falha');
+                    statusMsg.style.color = '#ef4444';
+                }
+            } catch (e) {
+                statusMsg.innerText = '❌ Erro de rede: ' + e.message;
+                statusMsg.style.color = '#ef4444';
+            }
+        }
+
+        // PWA Install Logic
+        let deferredPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Show popup if user hasn't dismissed it recently
+            const dismissed = localStorage.getItem('pwa-install-dismissed');
+            if (!dismissed || (Date.now() - parseInt(dismissed)) > 7 * 24 * 60 * 60 * 1000) {
+                setTimeout(() => {
+                    document.getElementById('pwa-install-popup').style.display = 'flex';
+                }, 1500);
+            }
+        });
+
+        function installPWA() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((result) => {
+                if (result.outcome === 'accepted') {
+                    console.log('PWA instalado!');
+                }
+                deferredPrompt = null;
+                document.getElementById('pwa-install-popup').style.display = 'none';
+            });
+        }
+
+        function dismissInstall() {
+            document.getElementById('pwa-install-popup').style.display = 'none';
+            localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+        }
+
+        // Hide banner if already installed as PWA
+        window.addEventListener('appinstalled', () => {
+            document.getElementById('pwa-install-popup').style.display = 'none';
+            deferredPrompt = null;
+        });
+
+        window.onload = () => {
+            loadData();
+            subscribeToLogs();
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(() => console.log('Service Worker registrado!'))
+                    .catch(err => console.log('Erro ao registrar SW:', err));
+            }
+            // If already in standalone mode, never show install popup
+            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+                document.getElementById('pwa-install-popup').style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>

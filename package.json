@@ -18,6 +18,8 @@
     "vite": "^7.2.4"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.95.3",
+    "canvas-confetti": "^1.9.4",
     "supabase": "^2.75.5"
   }
 }

@@ -66,6 +66,38 @@ serve(async (req) => {
       );
     }
 
+    // Extract user_id from JWT for profile-driven goals
+    const authHeader = req.headers.get("Authorization");
+    let userGoals = goals;
+
+    if (authHeader) {
+      try {
+        const token = authHeader.replace("Bearer ", "");
+        const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+          global: { headers: { Authorization: `Bearer ${token}` } },
+        });
+        const { data: { user } } = await userClient.auth.getUser(token);
+        if (user) {
+          const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("goal_kcal, goal_ptn, goal_carb, goal_fat, health_conditions, goal_type")
+            .eq("user_id", user.id)
+            .single();
+          if (profile) {
+            userGoals = {
+              kcal: profile.goal_kcal || userGoals?.kcal || 2000,
+              ptn: profile.goal_ptn || userGoals?.ptn || 100,
+              carb: profile.goal_carb || userGoals?.carb || 250,
+              fat: profile.goal_fat || userGoals?.fat || 67,
+            };
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load profile goals:", e);
+      }
+    }
+
     // Build context about eating habits
     const foodFrequency: Record<string, number> = {};
     const mealPatterns: Record<string, string[]> = {};
@@ -136,7 +168,7 @@ FORMATO DE RESPOSTA:
 }`;
 
     const userPrompt = `PERFIL DO USUÁRIO:
-- Metas diárias: ${goals?.kcal || 2914} kcal, ${goals?.ptn || 124}g proteína, ${goals?.carb || 421}g carbs, ${goals?.fat || 81}g gordura
+- Metas diárias: ${userGoals?.kcal || 2000} kcal, ${userGoals?.ptn || 100}g proteína, ${userGoals?.carb || 250}g carbs, ${userGoals?.fat || 67}g gordura
 - Macros RESTANTES para hoje: ${remaining.kcal} kcal, ${remaining.ptn}g proteína, ${remaining.carb}g carbs, ${remaining.fat}g gordura
 - Horário atual: ${hour}h (momento ideal para ${timeContext})
 

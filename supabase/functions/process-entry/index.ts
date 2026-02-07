@@ -89,12 +89,31 @@ serve(async (req) => {
       });
     }
 
+    // Extract user_id from JWT
+    const authHeader = req.headers.get("Authorization");
+    let userId: string | null = null;
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+      const { data: { user } } = await userClient.auth.getUser(token);
+      userId = user?.id ?? null;
+    }
+
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // 1. Registrar no chat_logs
     const { data: logData } = await supabase
       .from("chat_logs")
-      .insert({ date, text, status: "processing" })
+      .insert({ date, text, status: "processing", user_id: userId })
       .select()
       .single();
 
@@ -103,6 +122,7 @@ serve(async (req) => {
       .from("days")
       .select("date")
       .eq("date", date)
+      .eq("user_id", userId)
       .single();
 
     if (!existingDay) {
@@ -112,6 +132,7 @@ serve(async (req) => {
         ptn_total: 0,
         carb_total: 0,
         fat_total: 0,
+        user_id: userId,
       });
     }
 
@@ -144,6 +165,7 @@ serve(async (req) => {
           ptn: totalPtn,
           carb: totalCarb,
           fat: totalFat,
+          user_id: userId,
         })
         .select("id")
         .single();
@@ -152,7 +174,7 @@ serve(async (req) => {
         // Fallback sem carb/fat
         const { data: meal2 } = await supabase
           .from("meals")
-          .insert({ date, name: parsed.name || "Refeição", kcal: totalKcal, ptn: totalPtn })
+          .insert({ date, name: parsed.name || "Refeição", kcal: totalKcal, ptn: totalPtn, user_id: userId })
           .select("id")
           .single();
         if (meal2) {
@@ -162,6 +184,7 @@ serve(async (req) => {
               name: item.name || "Item",
               kcal: item.kcal || 0,
               ptn: item.ptn || 0,
+              user_id: userId,
             });
           }
         }
@@ -174,6 +197,7 @@ serve(async (req) => {
             ptn: item.ptn || 0,
             carb: item.carb || 0,
             fat: item.fat || 0,
+            user_id: userId,
           });
           // Fallback sem carb/fat
           if (itemErr) {
@@ -182,13 +206,14 @@ serve(async (req) => {
               name: item.name || "Item",
               kcal: item.kcal || 0,
               ptn: item.ptn || 0,
+              user_id: userId,
             });
           }
         }
       }
 
       // Atualizar totais do dia
-      const { data: day } = await supabase.from("days").select("*").eq("date", date).single();
+      const { data: day } = await supabase.from("days").select("*").eq("date", date).eq("user_id", userId).single();
       if (day) {
         await supabase
           .from("days")
@@ -198,7 +223,8 @@ serve(async (req) => {
             carb_total: (day.carb_total || 0) + totalCarb,
             fat_total: (day.fat_total || 0) + totalFat,
           })
-          .eq("date", date);
+          .eq("date", date)
+          .eq("user_id", userId);
       }
 
       const itemNames = items.map((i: any) => i.name).join(", ");
@@ -211,25 +237,26 @@ serve(async (req) => {
           sleep_end: parsed.end,
           sleep_quality: parsed.quality || "BOA",
         })
-        .eq("date", date);
+        .eq("date", date)
+        .eq("user_id", userId);
 
       responseMsg = `🌙 Sono registrado: ${parsed.start} → ${parsed.end} (${parsed.quality})`;
     } else if (parsed.type === "health") {
       // Condição de saúde
       const healthTag = `[SAÚDE] ${parsed.condition}: ${parsed.details || text} (${parsed.severity || "leve"})`;
-      const { data: day } = await supabase.from("days").select("notes").eq("date", date).single();
+      const { data: day } = await supabase.from("days").select("notes").eq("date", date).eq("user_id", userId).single();
       const existing = day?.notes || "";
       const newNotes = (existing + "\n" + healthTag).trim();
-      await supabase.from("days").update({ notes: newNotes }).eq("date", date);
+      await supabase.from("days").update({ notes: newNotes }).eq("date", date).eq("user_id", userId);
 
       const severityEmoji = parsed.severity === "severo" ? "🚨" : parsed.severity === "moderado" ? "⚠️" : "🩹";
       responseMsg = `${severityEmoji} Saúde registrada: ${parsed.condition}. Suas sugestões e insights serão adaptados!`;
     } else {
       // Nota
-      const { data: day } = await supabase.from("days").select("notes").eq("date", date).single();
+      const { data: day } = await supabase.from("days").select("notes").eq("date", date).eq("user_id", userId).single();
       const existing = day?.notes || "";
       const newNotes = (existing + "\n" + (parsed.text || text)).trim();
-      await supabase.from("days").update({ notes: newNotes }).eq("date", date);
+      await supabase.from("days").update({ notes: newNotes }).eq("date", date).eq("user_id", userId);
 
       responseMsg = `📝 Nota registrada.`;
     }
