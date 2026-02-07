@@ -84,13 +84,13 @@ Empty chat messages can be sent. Add a check before calling the Edge Function.
 - [x] Dark/Light Mode Toggle (alternância de tema com persistência, ícone animado, dark mode completo em todos componentes, FOUC prevention)
 - [x] AI Coach Personality (mensagens motivacionais e encorajadoras, tom amigável e empático)
 - [x] Pull-to-Refresh (gesture nativo para mobile PWA, feedback visual)
+- [x] Macro Pie Charts (conic-gradient com distribuição PTN/CHO/FAT, legenda interativa)
+- [x] Macro Overage Indicators (indicadores visuais vermelho quando metas são excedidas)
+- [x] Error Handling & Retry UI (Dashboard e QuickLog com fallback amigável e botão de retry)
 
 ---
 
 ## 🚀 Próximas Features Interessantes
-
-### 13. Macro Pie Charts
-Visualização de distribuição de macros (carboidratos, proteínas, gorduras) com gráfico de pizza animado.
 
 ### 14. Weekly Meal Planner
 Planejar refeições da semana com IA. Gerar lista de compras automaticamente.

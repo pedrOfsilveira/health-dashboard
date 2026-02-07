@@ -6,10 +6,12 @@
 
   let frequentMeals = $state([]);
   let loading = $state(true);
+  let loadFailed = $state(false);
 
   async function loadFrequentMeals() {
     if (!auth.session?.user) return;
     loading = true;
+    loadFailed = false;
 
     try {
       // Get all meals from last 30 days, count by name
@@ -65,6 +67,7 @@
       frequentMeals = processed;
     } catch (err) {
       console.error('Error loading frequent meals:', err);
+      loadFailed = true;
     } finally {
       loading = false;
     }
@@ -99,7 +102,17 @@
   });
 </script>
 
-{#if !loading && frequentMeals.length > 0}
+{#if loadFailed}
+  <div class="bg-red-50 dark:bg-red-950/30 rounded-2xl p-4 border border-red-200 dark:border-red-900 mb-4 text-center">
+    <p class="text-xs font-bold text-red-600 dark:text-red-400 mb-2">Falha ao carregar refeições frequentes</p>
+    <button
+      onclick={loadFrequentMeals}
+      class="text-[10px] font-bold text-red-600 dark:text-red-400 underline hover:no-underline"
+    >
+      🔄 Tentar novamente
+    </button>
+  </div>
+{:else if !loading && frequentMeals.length > 0}
   <div class="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-900 mb-4">
     <div class="flex items-center justify-between mb-3">
       <div class="flex items-center gap-2">

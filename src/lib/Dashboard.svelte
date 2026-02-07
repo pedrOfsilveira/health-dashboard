@@ -15,6 +15,7 @@
   let allData = $state({});
   let selectedDate = $state(null);
   let loading = $state(true);
+  let loadError = $state(null);
   let macroChart = $state(null);
   let canvasEl = $state(null);
 
@@ -26,22 +27,40 @@
   // Current day's data
   let currentDay = $derived(selectedDate ? allData[selectedDate] : null);
 
-  // Computed remaining macros
+  // Computed remaining macros (allow negatives to show overage)
   let remaining = $derived.by(() => {
     if (!currentDay) return { kcal: goals.kcal, ptn: goals.ptn, carb: goals.carb, fat: goals.fat };
     return {
-      kcal: Math.max(0, goals.kcal - currentDay.summary.kcal),
-      ptn: Math.max(0, goals.ptn - currentDay.summary.ptn),
-      carb: Math.max(0, goals.carb - currentDay.summary.carb),
-      fat: Math.max(0, goals.fat - currentDay.summary.fat),
+      kcal: goals.kcal - currentDay.summary.kcal,
+      ptn: goals.ptn - currentDay.summary.ptn,
+      carb: goals.carb - currentDay.summary.carb,
+      fat: goals.fat - currentDay.summary.fat,
     };
   });
 
-  // Percentages
-  let pctKcal = $derived(currentDay ? Math.min(100, Math.round((currentDay.summary.kcal / goals.kcal) * 100)) : 0);
-  let pctPtn = $derived(currentDay ? Math.min(100, Math.round((currentDay.summary.ptn / goals.ptn) * 100)) : 0);
-  let pctCarb = $derived(currentDay ? Math.min(100, Math.round((currentDay.summary.carb / goals.carb) * 100)) : 0);
-  let pctFat = $derived(currentDay ? Math.min(100, Math.round((currentDay.summary.fat / goals.fat) * 100)) : 0);
+  // Percentages (uncapped — allow >100% to show overage)
+  let pctKcal = $derived(currentDay ? Math.round((currentDay.summary.kcal / goals.kcal) * 100) : 0);
+  let pctPtn = $derived(currentDay ? Math.round((currentDay.summary.ptn / goals.ptn) * 100) : 0);
+  let pctCarb = $derived(currentDay ? Math.round((currentDay.summary.carb / goals.carb) * 100) : 0);
+  let pctFat = $derived(currentDay ? Math.round((currentDay.summary.fat / goals.fat) * 100) : 0);
+
+  // Macro distribution for pie chart (conic-gradient)
+  let macroDistribution = $derived.by(() => {
+    if (!currentDay) return { ptn: 0, carb: 0, fat: 0, total: 0 };
+    const ptn = currentDay.summary.ptn || 0;
+    const carb = currentDay.summary.carb || 0;
+    const fat = currentDay.summary.fat || 0;
+    const total = ptn + carb + fat;
+    return { ptn, carb, fat, total };
+  });
+  let pieGradient = $derived.by(() => {
+    const { ptn, carb, fat, total } = macroDistribution;
+    if (total === 0) return 'conic-gradient(#e2e8f0 0% 100%)';
+    const ptnPct = (ptn / total) * 100;
+    const carbPct = (carb / total) * 100;
+    const fatPct = (fat / total) * 100;
+    return `conic-gradient(#10b981 0% ${ptnPct}%, #f59e0b ${ptnPct}% ${ptnPct + carbPct}%, #ef4444 ${ptnPct + carbPct}% 100%)`;
+  });
 
   // Confetti trigger
   let showConfetti = $state(false);
@@ -99,6 +118,7 @@
   async function loadData() {
     if (!auth.session?.user) return;
     loading = true;
+    loadError = null;
 
     try {
       const userId = auth.session.user.id;
@@ -166,6 +186,7 @@
       }
     } catch (err) {
       console.error('Error loading data:', err);
+      loadError = err.message || 'Erro ao carregar dados';
     } finally {
       loading = false;
     }
@@ -317,6 +338,18 @@
       <div class="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
       <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Sincronizando...</p>
     </div>
+  {:else if loadError}
+    <div class="flex flex-col items-center justify-center h-64 gap-4 text-center px-6">
+      <div class="w-16 h-16 rounded-full bg-red-50 dark:bg-red-950/30 flex items-center justify-center text-3xl">⚠️</div>
+      <p class="text-sm font-bold text-slate-700 dark:text-slate-300">Falha ao carregar dados</p>
+      <p class="text-xs text-slate-500 dark:text-slate-400">{loadError}</p>
+      <button
+        onclick={loadData}
+        class="mt-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold text-sm transition-all active:scale-95 flex items-center gap-2"
+      >
+        🔄 Tentar novamente
+      </button>
+    </div>
   {:else}
     <!-- Date Tabs -->
     {#if dates.length > 0}
@@ -358,40 +391,85 @@
               <span class="text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tighter">{currentDay.summary.kcal.toLocaleString('pt-BR')}</span>
               <span class="text-[10px] font-bold text-slate-400 uppercase ml-2 tracking-widest">kcal / {goals.kcal}</span>
             </div>
-            <div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-lg text-xs font-black">{pctKcal}%</div>
+            <div class="{pctKcal > 110 ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'} px-3 py-1 rounded-lg text-xs font-black">{pctKcal}%</div>
           </div>
           <div class="w-full h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div class="h-full bg-emerald-500 dark:bg-emerald-400 rounded-full transition-all duration-700" style="width: {pctKcal}%"></div>
+            <div class="h-full {pctKcal > 110 ? 'bg-red-500 dark:bg-red-400' : 'bg-emerald-500 dark:bg-emerald-400'} rounded-full transition-all duration-700" style="width: {Math.min(100, pctKcal)}%"></div>
           </div>
+          {#if remaining.kcal < 0}
+            <p class="text-[10px] font-bold text-red-500 dark:text-red-400 mt-1.5">⚠️ Excesso de {Math.abs(remaining.kcal)} kcal</p>
+          {/if}
         </div>
 
         <!-- Macros -->
         <div class="grid grid-cols-3 gap-4">
           <div class="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-4">
             <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">PTN</p>
-            <p class="text-lg font-black text-slate-800 dark:text-slate-200">{currentDay.summary.ptn}</p>
+            <p class="text-lg font-black {pctPtn > 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}">{currentDay.summary.ptn}</p>
             <p class="text-[10px] font-bold text-slate-400 mt-0.5">/ {goals.ptn}g</p>
             <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mt-2 overflow-hidden">
-              <div class="h-full bg-emerald-500 dark:bg-emerald-400 rounded-full transition-all duration-700" style="width: {pctPtn}%"></div>
+              <div class="h-full bg-emerald-500 dark:bg-emerald-400 rounded-full transition-all duration-700" style="width: {Math.min(100, pctPtn)}%"></div>
             </div>
+            {#if remaining.ptn < 0}
+              <p class="text-[9px] font-bold text-emerald-500 mt-1">+{Math.abs(remaining.ptn)}g 💪</p>
+            {/if}
           </div>
           <div class="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-4">
             <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">CHO</p>
-            <p class="text-lg font-black text-slate-800 dark:text-slate-200">{currentDay.summary.carb}</p>
+            <p class="text-lg font-black {pctCarb > 110 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-800 dark:text-slate-200'}">{currentDay.summary.carb}</p>
             <p class="text-[10px] font-bold text-slate-400 mt-0.5">/ {goals.carb}g</p>
             <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mt-2 overflow-hidden">
-              <div class="h-full bg-amber-500 dark:bg-amber-400 rounded-full transition-all duration-700" style="width: {pctCarb}%"></div>
+              <div class="h-full {pctCarb > 110 ? 'bg-amber-600 dark:bg-amber-500' : 'bg-amber-500 dark:bg-amber-400'} rounded-full transition-all duration-700" style="width: {Math.min(100, pctCarb)}%"></div>
             </div>
+            {#if remaining.carb < 0}
+              <p class="text-[9px] font-bold text-amber-500 mt-1">+{Math.abs(remaining.carb)}g</p>
+            {/if}
           </div>
           <div class="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-4">
             <p class="text-[9px] font-extrabold text-slate-400 uppercase mb-2 tracking-wider">FAT</p>
-            <p class="text-lg font-black text-slate-800 dark:text-slate-200">{currentDay.summary.fat}</p>
+            <p class="text-lg font-black {pctFat > 110 ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}">{currentDay.summary.fat}</p>
             <p class="text-[10px] font-bold text-slate-400 mt-0.5">/ {goals.fat}g</p>
             <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mt-2 overflow-hidden">
-              <div class="h-full bg-red-500 dark:bg-red-400 rounded-full transition-all duration-700" style="width: {pctFat}%"></div>
+              <div class="h-full {pctFat > 110 ? 'bg-red-600 dark:bg-red-500' : 'bg-red-500 dark:bg-red-400'} rounded-full transition-all duration-700" style="width: {Math.min(100, pctFat)}%"></div>
             </div>
+            {#if remaining.fat < 0}
+              <p class="text-[9px] font-bold text-red-500 mt-1">+{Math.abs(remaining.fat)}g</p>
+            {/if}
           </div>
         </div>
+
+        <!-- Macro Distribution Pie Chart -->
+        {#if macroDistribution.total > 0}
+          <div class="mt-5 flex items-center gap-5">
+            <div
+              class="w-20 h-20 rounded-full flex-shrink-0 shadow-inner"
+              style="background: {pieGradient};"
+            >
+              <div class="w-full h-full rounded-full flex items-center justify-center">
+                <div class="w-12 h-12 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
+                  <span class="text-[10px] font-black text-slate-500 dark:text-slate-400">{macroDistribution.total}g</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex-1 space-y-1.5">
+              <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex-1">Proteína</span>
+                <span class="text-[10px] font-black text-slate-500 dark:text-slate-400">{macroDistribution.ptn}g ({macroDistribution.total > 0 ? Math.round((macroDistribution.ptn / macroDistribution.total) * 100) : 0}%)</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex-1">Carboidrato</span>
+                <span class="text-[10px] font-black text-slate-500 dark:text-slate-400">{macroDistribution.carb}g ({macroDistribution.total > 0 ? Math.round((macroDistribution.carb / macroDistribution.total) * 100) : 0}%)</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex-1">Gordura</span>
+                <span class="text-[10px] font-black text-slate-500 dark:text-slate-400">{macroDistribution.fat}g ({macroDistribution.total > 0 ? Math.round((macroDistribution.fat / macroDistribution.total) * 100) : 0}%)</span>
+              </div>
+            </div>
+          </div>
+        {/if}
       </div>
 
       <!-- Sleep Card -->
@@ -537,10 +615,10 @@
         </div>
 
         <div class="flex gap-2 mb-4 flex-wrap">
-          <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg">Faltam: {remaining.kcal} kcal</span>
-          <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 rounded-lg">{remaining.ptn}g ptn</span>
-          <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 rounded-lg">{remaining.carb}g carb</span>
-          <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 rounded-lg">{remaining.fat}g fat</span>
+          <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 {remaining.kcal < 0 ? 'bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'} rounded-lg">{remaining.kcal < 0 ? 'Excesso' : 'Faltam'}: {Math.abs(remaining.kcal)} kcal</span>
+          <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 {remaining.ptn < 0 ? 'bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-400' : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400'} rounded-lg">{Math.abs(remaining.ptn)}g ptn</span>
+          <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 {remaining.carb < 0 ? 'bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-400' : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400'} rounded-lg">{Math.abs(remaining.carb)}g carb</span>
+          <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 {remaining.fat < 0 ? 'bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-400' : 'bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400'} rounded-lg">{Math.abs(remaining.fat)}g fat</span>
         </div>
 
         <button
