@@ -237,12 +237,24 @@ export function calculateGoals(profileData) {
 
 // ─── Init Auth Listener ─────────────────────────────────────
 
-let _loadingUserId = null;
+let _authInitialized = false;
+let _loadingAbort = null;
 
 export function initAuth() {
+  // Safety timeout: if auth takes more than 10s, stop loading and show login
+  const safetyTimeout = setTimeout(() => {
+    if (auth.loading) {
+      console.warn('Auth loading timeout — forcing login screen');
+      auth.loading = false;
+      auth.session = null;
+      router.page = 'login';
+    }
+  }, 10000);
+
   // Single source of truth: onAuthStateChange handles ALL auth events
   // including INITIAL_SESSION (which auto-detects OAuth codes in URL via PKCE)
   supabase.auth.onAuthStateChange(async (event, session) => {
+    clearTimeout(safetyTimeout);
     auth.session = session;
 
     // Clean OAuth params from URL after callback
@@ -255,17 +267,25 @@ export function initAuth() {
     }
 
     if (session?.user) {
-      // Guard against duplicate loads for the same user
-      if (_loadingUserId === session.user.id) return;
-      _loadingUserId = session.user.id;
+      // Cancel any previous load in progress
+      if (_loadingAbort) {
+        _loadingAbort.abort();
+      }
+      _loadingAbort = new AbortController();
+      const currentAbort = _loadingAbort;
+
       try {
         await loadUserData(session.user.id);
-      } finally {
-        _loadingUserId = null;
+      } catch (err) {
+        // If this load was aborted because a newer one started, silently ignore
+        if (currentAbort.signal.aborted) return;
+        console.error('Error in auth flow:', err);
+        auth.loading = false;
+        router.page = 'login';
       }
     } else {
       // No session — either INITIAL_SESSION with no user, or SIGNED_OUT
-      _loadingUserId = null;
+      _loadingAbort = null;
       profile.data = null;
       profile.needsSetup = false;
       auth.loading = false;
@@ -276,6 +296,7 @@ export function initAuth() {
 
 async function loadUserData(userId) {
   profile.loading = true;
+  auth.loading = true;
 
   try {
     const p = await fetchProfile(userId);
@@ -294,15 +315,17 @@ async function loadUserData(userId) {
         goals.fat = calculated.fat;
       }
 
-      // Load gamification data
-      const s = await fetchStreak(userId);
+      // Load gamification data in parallel for faster load
+      const [s, a] = await Promise.all([
+        fetchStreak(userId).catch(() => null),
+        fetchAchievements(userId).catch(() => []),
+      ]);
+
       if (s) {
         streak.current = s.current_streak || 0;
         streak.longest = s.longest_streak || 0;
         streak.lastLogDate = s.last_log_date;
       }
-
-      const a = await fetchAchievements(userId);
       achievements.unlocked = a || [];
 
       // Calculate XP from profile
@@ -314,7 +337,7 @@ async function loadUserData(userId) {
       }
 
       // Load social data (non-blocking)
-      loadSocialData(userId);
+      loadSocialData(userId).catch(() => {});
 
       router.page = 'dashboard';
     }

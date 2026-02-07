@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bio-tracker-v3';
+const CACHE_NAME = 'bio-tracker-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -56,12 +56,43 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for everything else (static assets, CDN)
+  // Navigation requests: always network-first to avoid stale HTML/JS
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // JS/CSS bundles with hashes: network-first to pick up new deploys
+  if (url.pathname.match(/\.(js|css)$/)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-first for other static assets (images, fonts, icons)
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request).then((response) => {
-        // Cache new successful responses
         if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
@@ -69,10 +100,7 @@ self.addEventListener('fetch', (event) => {
         return response;
       });
     }).catch(() => {
-      // Offline fallback for navigation
-      if (event.request.mode === 'navigate') {
-        return caches.match('/index.html');
-      }
+      // no fallback for non-navigate requests
     })
   );
 });
