@@ -13,6 +13,17 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Prevent FOUC for dark mode -->
+    <script>
+      // Apply dark mode before page renders - default to light
+      if (localStorage.theme === 'dark') {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    </script>
+    
     <!-- Async preload to prevent PWA cold start hanging -->
     <script async>/* Force initial paint */</script>
 </head>

@@ -133,7 +133,7 @@
   <!-- Back button -->
   <button
     onclick={() => navigate('dashboard')}
-    class="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-6 mt-2"
+    class="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 transition-colors mb-6 mt-2"
   >
     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
       <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -143,8 +143,8 @@
 
   <!-- Page Header -->
   <div class="mb-8">
-    <h1 class="text-2xl font-black text-slate-900 tracking-tight">👥 Amigos</h1>
-    <p class="text-xs text-slate-500 font-medium mt-1">Convide amigos, compare progresso e desafie-os!</p>
+    <h1 class="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">👥 Amigos</h1>
+    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Convide amigos, compare progresso e desafie-os!</p>
   </div>
 
   <!-- Tab Navigation -->
@@ -152,14 +152,14 @@
     <button
       onclick={() => activeTab = 'friends'}
       class="flex-1 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all
-        {activeTab === 'friends' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200'}"
+        {activeTab === 'friends' ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}"
     >
       Amigos ({friends.length})
     </button>
     <button
       onclick={() => activeTab = 'requests'}
       class="flex-1 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all relative
-        {activeTab === 'requests' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200'}"
+        {activeTab === 'requests' ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}"
     >
       Convites
       {#if social.pendingCount > 0}
@@ -171,7 +171,7 @@
     <button
       onclick={() => activeTab = 'search'}
       class="flex-1 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all
-        {activeTab === 'search' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200'}"
+        {activeTab === 'search' ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}"
     >
       Buscar
     </button>
@@ -179,10 +179,10 @@
 
   <!-- Search Tab -->
   {#if activeTab === 'search'}
-    <div class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 mb-6">
+    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6">
       <div class="flex items-center gap-3 mb-5">
-        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Convidar por Email</span>
-        <div class="flex-1 h-px bg-slate-200"></div>
+        <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Convidar por Email</span>
+        <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
       </div>
 
       <div class="flex gap-2 mb-4">
@@ -191,12 +191,12 @@
           bind:value={searchEmail}
           onkeydown={handleSearchKeydown}
           placeholder="email@exemplo.com"
-          class="flex-1 h-12 px-4 bg-slate-50 rounded-2xl text-sm border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+          class="flex-1 h-12 px-4 bg-slate-50 dark:bg-slate-900 rounded-2xl text-sm border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
         />
         <button
           onclick={handleSearch}
           disabled={searching || !searchEmail.trim()}
-          class="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-slate-800 disabled:opacity-50 transition-all"
+          class="w-12 h-12 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl flex items-center justify-center hover:bg-slate-800 dark:hover:bg-slate-600 disabled:opacity-50 transition-all"
         >
           {#if searching}
             <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -209,26 +209,26 @@
       </div>
 
       {#if searchError}
-        <div class="rounded-2xl px-4 py-3 text-sm bg-red-50 border border-red-200 text-red-700 font-medium">
+        <div class="rounded-2xl px-4 py-3 text-sm bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 font-medium">
           {searchError}
         </div>
       {/if}
 
       {#if searchResult}
-        <div class="rounded-2xl border border-slate-200 p-4 flex items-center gap-4">
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4">
           <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-xl text-white font-black shadow-md">
             {(searchResult.name || '?')[0].toUpperCase()}
           </div>
           <div class="flex-1">
-            <h3 class="font-black text-slate-800 text-sm">{searchResult.name}</h3>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+            <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm">{searchResult.name}</h3>
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">
               {getFriendLevel(searchResult.xp_total).title} • {searchResult.xp_total || 0} XP
             </p>
           </div>
           {#if searchResult.isFriend}
-            <span class="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black uppercase">✓ Amigos</span>
+            <span class="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-xl text-[10px] font-black uppercase">✓ Amigos</span>
           {:else if searchResult.requestSent || searchResult.hasPending}
-            <span class="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-xl text-[10px] font-black uppercase">Enviado</span>
+            <span class="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-xl text-[10px] font-black uppercase">Enviado</span>
           {:else}
             <button
               onclick={handleSendRequest}
@@ -242,7 +242,7 @@
       {/if}
     </div>
 
-    <div class="rounded-2xl px-4 py-3 text-sm bg-blue-50 border border-blue-200 text-blue-700">
+    <div class="rounded-2xl px-4 py-3 text-sm bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
       💡 <span class="font-bold">Dica:</span> Digite o email completo do seu amigo. Ele precisa ter uma conta no Bio-Tracker.
     </div>
   {/if}
@@ -251,20 +251,20 @@
   {#if activeTab === 'requests'}
     <div class="space-y-3">
       {#if social.pendingRequests.length === 0}
-        <div class="bg-white border border-slate-200 rounded-3xl p-8 text-center">
+        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 text-center">
           <p class="text-4xl mb-3">📭</p>
-          <p class="text-sm font-bold text-slate-400">Nenhum convite pendente</p>
-          <p class="text-xs text-slate-400 mt-1">Quando alguém te convidar, aparecerá aqui!</p>
+          <p class="text-sm font-bold text-slate-400 dark:text-slate-500">Nenhum convite pendente</p>
+          <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Quando alguém te convidar, aparecerá aqui!</p>
         </div>
       {:else}
         {#each social.pendingRequests as request (request.id)}
-          <div class="bg-white border border-slate-200 rounded-3xl p-5 flex items-center gap-4" style="animation: slideUp 0.3s ease-out">
+          <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 flex items-center gap-4" style="animation: slideUp 0.3s ease-out">
             <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center text-xl text-white font-black shadow-md">
               {(request.requester_name || '?')[0].toUpperCase()}
             </div>
             <div class="flex-1">
-              <h3 class="font-black text-slate-800 text-sm">{request.requester_name}</h3>
-              <p class="text-[10px] text-slate-400 font-bold mt-0.5">Quer ser seu amigo!</p>
+              <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm">{request.requester_name}</h3>
+              <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">Quer ser seu amigo!</p>
             </div>
             <div class="flex gap-2">
               <button
@@ -278,7 +278,7 @@
               </button>
               <button
                 onclick={() => handleRespond(request, false)}
-                class="w-10 h-10 bg-red-100 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-200 transition-colors"
+                class="w-10 h-10 bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400 rounded-xl flex items-center justify-center hover:bg-red-200 dark:hover:bg-red-800 transition-colors"
                 title="Recusar"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
@@ -300,10 +300,10 @@
         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Carregando...</p>
       </div>
     {:else if friends.length === 0}
-      <div class="bg-white border border-slate-200 rounded-3xl p-8 text-center">
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 text-center">
         <p class="text-4xl mb-3">🤝</p>
-        <p class="text-sm font-bold text-slate-400">Nenhum amigo ainda</p>
-        <p class="text-xs text-slate-400 mt-1">Convide alguém pela aba "Buscar"!</p>
+        <p class="text-sm font-bold text-slate-400 dark:text-slate-500">Nenhum amigo ainda</p>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Convide alguém pela aba "Buscar"!</p>
         <button
           onclick={() => activeTab = 'search'}
           class="mt-4 px-6 py-2.5 bg-emerald-500 text-white rounded-2xl text-xs font-black hover:bg-emerald-600 transition-colors"
@@ -315,23 +315,23 @@
       <div class="space-y-3">
         {#each friends as friend (friend.user_id)}
           {@const level = getFriendLevel(friend.xp_total)}
-          <div class="bg-white border border-slate-200 rounded-3xl p-5 flex items-center gap-4 hover:border-slate-300 transition-colors">
+          <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 flex items-center gap-4 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
             <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-xl text-white font-black shadow-md relative">
               {(friend.name || '?')[0].toUpperCase()}
               {#if friend.current_streak > 0}
-                <div class="absolute -bottom-1 -right-1 bg-orange-500 text-white text-[8px] font-black rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
+                <div class="absolute -bottom-1 -right-1 bg-orange-500 text-white text-[8px] font-black rounded-full w-5 h-5 flex items-center justify-center border-2 border-white dark:border-slate-800">
                   🔥
                 </div>
               {/if}
             </div>
             <div class="flex-1">
-              <h3 class="font-black text-slate-800 text-sm">{friend.name}</h3>
+              <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm">{friend.name}</h3>
               <div class="flex items-center gap-2 mt-1">
-                <span class="text-[10px] font-bold text-emerald-600">Lv{level.level}</span>
-                <span class="text-[10px] text-slate-300">•</span>
-                <span class="text-[10px] font-bold text-slate-400">{friend.xp_total || 0} XP</span>
+                <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Lv{level.level}</span>
+                <span class="text-[10px] text-slate-300 dark:text-slate-600">•</span>
+                <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500">{friend.xp_total || 0} XP</span>
                 {#if friend.current_streak > 0}
-                  <span class="text-[10px] text-slate-300">•</span>
+                  <span class="text-[10px] text-slate-300 dark:text-slate-600">•</span>
                   <span class="text-[10px] font-bold text-orange-500">🔥 {friend.current_streak}</span>
                 {/if}
               </div>
@@ -339,7 +339,7 @@
             <div class="flex gap-2">
               <button
                 onclick={() => { navigate('challenges'); }}
-                class="p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                class="p-2.5 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                 title="Desafiar"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -348,7 +348,7 @@
               </button>
               <button
                 onclick={() => handleRemoveFriend(friend)}
-                class="p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-colors"
+                class="p-2.5 bg-slate-50 dark:bg-slate-900 text-slate-400 dark:text-slate-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                 title="Remover"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

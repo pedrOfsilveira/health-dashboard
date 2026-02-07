@@ -79,3 +79,34 @@ Empty chat messages can be sent. Add a check before calling the Edge Function.
 - [x] Gamification Engine in Edge Function (auto streak, badge, XP, challenge progress on every log)
 - [x] Weekly Progress Chart (Chart.js calories/protein bar+line chart for last 7 days)
 - [x] GitHub OAuth Login (sign in with GitHub on login and register pages)
+- [x] Water Tracking (💧 contador com meta 2L/dia, integração com chat, visualização de progresso)
+- [x] Quick-Log Buttons (botões inteligentes com refeições mais frequentes, analytics de histórico)
+- [x] Dark/Light Mode Toggle (alternância de tema com persistência, ícone animado, dark mode completo em todos componentes, FOUC prevention)
+- [x] AI Coach Personality (mensagens motivacionais e encorajadoras, tom amigável e empático)
+- [x] Pull-to-Refresh (gesture nativo para mobile PWA, feedback visual)
+
+---
+
+## 🚀 Próximas Features Interessantes
+
+### 13. Macro Pie Charts
+Visualização de distribuição de macros (carboidratos, proteínas, gorduras) com gráfico de pizza animado.
+
+### 14. Weekly Meal Planner
+Planejar refeições da semana com IA. Gerar lista de compras automaticamente.
+
+### 16. Meal Reminders
+Notificações inteligentes lembrando de registrar refeições baseado em horários habituais.
+
+### 17. Recipe Suggestions
+IA sugere receitas baseadas nos ingredientes que você mais consome e suas metas nutricionais.
+
+### 18. Social Feed
+Feed de conquistas dos amigos, desafios completados, recordes quebrados. Engajamento social.
+
+### 19. Macro Goals Adjustment
+Ajuste automático de metas baseado em progresso e feedback do usuário (cutting, bulking, maintenance).
+
+### 20. Habit Streaks
+Além de logging diário, track de hábitos específicos: "beber água antes do café", "proteína no café da manhã".
+

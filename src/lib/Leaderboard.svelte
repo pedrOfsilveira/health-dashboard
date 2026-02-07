@@ -30,10 +30,10 @@
   </div>
 {:else if leaderboard.length <= 1}
   <div class="text-center py-4">
-    <p class="text-xs text-slate-400 font-medium">Adicione amigos para ver o ranking! 🤝</p>
+    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Adicione amigos para ver o ranking! 🤝</p>
     <button
       onclick={() => navigate('friends')}
-      class="mt-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase hover:bg-slate-200 transition-colors"
+      class="mt-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
     >
       + Convidar Amigos
     </button>
@@ -43,9 +43,9 @@
     {#each leaderboard as entry, idx (entry.user_id)}
       {@const level = computeLevel(entry.xp_total || 0)}
       <div class="flex items-center gap-3 py-2.5 px-3 rounded-xl transition-colors
-        {entry.isMe ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-slate-50'}">
+        {entry.isMe ? 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900' : 'hover:bg-slate-50 dark:hover:bg-slate-700'}">
         <!-- Position -->
-        <span class="text-sm font-black w-8 text-center {idx === 0 ? 'text-amber-500' : idx === 1 ? 'text-slate-400' : idx === 2 ? 'text-amber-700' : 'text-slate-300'}">
+        <span class="text-sm font-black w-8 text-center {idx === 0 ? 'text-amber-500' : idx === 1 ? 'text-slate-400' : idx === 2 ? 'text-amber-700' : 'text-slate-300 dark:text-slate-600'}">
           {getMedalEmoji(idx)}
         </span>
 
@@ -57,21 +57,21 @@
 
         <!-- Name & Level -->
         <div class="flex-1 min-w-0">
-          <p class="text-xs font-black text-slate-800 truncate">
+          <p class="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
             {entry.name || 'Usuário'}
             {#if entry.isMe}
-              <span class="text-[9px] text-emerald-600 font-bold ml-1">(você)</span>
+              <span class="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold ml-1">(você)</span>
             {/if}
           </p>
-          <p class="text-[9px] font-bold text-slate-400">Lv{level.level} • {level.title}</p>
+          <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500">Lv{level.level} • {level.title}</p>
         </div>
 
         <!-- Stats -->
         <div class="text-right flex items-center gap-2">
           {#if entry.current_streak > 0}
-            <span class="text-[10px] font-bold text-orange-500">🔥{entry.current_streak}</span>
+            <span class="text-[10px] font-bold text-orange-500 dark:text-orange-400">🔥{entry.current_streak}</span>
           {/if}
-          <span class="text-[10px] font-black text-slate-600">⚡{entry.xp_total || 0}</span>
+          <span class="text-[10px] font-black text-slate-600 dark:text-slate-300">⚡{entry.xp_total || 0}</span>
         </div>
       </div>
     {/each}

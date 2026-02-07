@@ -49,55 +49,56 @@
   }
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50 flex items-center justify-center p-4">
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50 dark:from-slate-900 dark:to-emerald-950 flex items-center justify-center p-4">
   <div class="w-full max-w-md">
     <!-- Logo -->
     <div class="text-center mb-8">
-      <div class="w-16 h-16 rounded-2xl bg-slate-900 flex items-center justify-center mx-auto mb-4 shadow-lg">
+      <div class="w-16 h-16 rounded-2xl bg-slate-900 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4 shadow-lg">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       </div>
-      <h1 class="text-2xl font-black text-slate-900 tracking-tight">Bio-Tracker</h1>
-      <p class="text-sm text-slate-500 mt-1">Crie sua conta e comece a rastrear</p>
+      <h1 class="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Bio-Tracker</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Crie sua conta e comece a rastrear</p>
     </div>
 
     <!-- Card -->
-    <div class="bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
-      <h2 class="text-xl font-black text-slate-900 mb-6">Criar Conta</h2>
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 p-8">
+      <h2 class="text-xl font-black text-slate-900 dark:text-slate-100 mb-6">Criar Conta</h2>
 
       {#if error}
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm font-medium mb-4">
+        <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-2xl text-sm font-medium mb-4">
           {error}
         </div>
       {/if}
 
       {#if success}
-        <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-2xl text-sm font-medium mb-4">
+        <div class="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 px-4 py-3 rounded-2xl text-sm font-medium mb-4">
           {success}
         </div>
       {/if}
 
       <form onsubmit={handleSubmit} class="space-y-4">
         <div>
-          <label for="reg-email" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email</label>
+          <label for="reg-email" class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Email</label>
           <input
             id="reg-email"
             type="email"
             bind:value={email}
             placeholder="seu@email.com"
-            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
             disabled={loading}
           />
         </div>
 
         <div>
-          <label for="reg-password" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Senha</label>
+          <label for="reg-password" class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Senha</label>
           <input
             id="reg-password"
             type="password"
             bind:value={password}
             placeholder="Mínimo 6 caracteres"
-            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
             disabled={loading}
+
           />
         </div>
 

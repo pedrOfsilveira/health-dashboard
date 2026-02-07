@@ -28,20 +28,20 @@
   }
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50 flex items-center justify-center p-4">
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50 dark:from-slate-900 dark:to-emerald-950 flex items-center justify-center p-4">
   <div class="w-full max-w-md">
     <!-- Logo -->
     <div class="text-center mb-8">
-      <div class="w-16 h-16 rounded-2xl bg-slate-900 flex items-center justify-center mx-auto mb-4 shadow-lg">
+      <div class="w-16 h-16 rounded-2xl bg-slate-900 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4 shadow-lg">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       </div>
-      <h1 class="text-2xl font-black text-slate-900 tracking-tight">Bio-Tracker</h1>
-      <p class="text-sm text-slate-500 mt-1">Seu assistente de saúde inteligente</p>
+      <h1 class="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Bio-Tracker</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Seu assistente de saúde inteligente</p>
     </div>
 
     <!-- Card -->
-    <div class="bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
-      <h2 class="text-xl font-black text-slate-900 mb-6">Entrar</h2>
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 p-8">
+      <h2 class="text-xl font-black text-slate-900 dark:text-slate-100 mb-6">Entrar</h2>
 
       {#if error}
         <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm font-medium mb-4">
@@ -51,25 +51,25 @@
 
       <form onsubmit={handleSubmit} class="space-y-4">
         <div>
-          <label for="email" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email</label>
+          <label for="email" class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Email</label>
           <input
             id="email"
             type="email"
             bind:value={email}
             placeholder="seu@email.com"
-            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
             disabled={loading}
           />
         </div>
 
         <div>
-          <label for="password" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Senha</label>
+          <label for="password" class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Senha</label>
           <input
             id="password"
             type="password"
             bind:value={password}
             placeholder="••••••••"
-            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
             disabled={loading}
           />
         </div>
@@ -77,7 +77,7 @@
         <button
           type="submit"
           disabled={loading}
-          class="w-full py-3.5 bg-slate-900 text-white rounded-2xl font-black text-sm tracking-tight hover:bg-slate-800 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          class="w-full py-3.5 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl font-black text-sm tracking-tight hover:bg-slate-800 dark:hover:bg-slate-600 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {#if loading}
             <span class="inline-flex items-center gap-2">
@@ -92,9 +92,9 @@
 
       <!-- Divider -->
       <div class="flex items-center gap-3 my-6">
-        <div class="flex-1 h-px bg-slate-200"></div>
+        <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ou</span>
-        <div class="flex-1 h-px bg-slate-200"></div>
+        <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
       </div>
 
       <!-- GitHub Login -->

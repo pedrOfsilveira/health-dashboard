@@ -44,7 +44,9 @@
       {@const unlocked = unlockedIds.has(badge.id)}
       <div
         class="flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all
-          {unlocked ? 'bg-amber-50 border border-amber-200' : 'bg-slate-50 border border-slate-100 opacity-40 grayscale'}"
+          {unlocked 
+            ? 'bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50' 
+            : 'bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 opacity-40 grayscale'}"
         title={badge.description}
       >
         <span class="text-2xl">{badge.icon}</span>

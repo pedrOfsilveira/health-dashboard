@@ -1,6 +1,7 @@
 <script>
   import { callProcessEntry } from './supabase.js';
   import { profile, handleGamificationUpdate } from './stores.svelte.js';
+  import QuickLog from './QuickLog.svelte';
 
   let { selectedDate = $bindable(), onEntryLogged = () => {} } = $props();
 
@@ -8,7 +9,7 @@
   let input = $state('');
   let chatDate = $state(selectedDate || new Date().toISOString().split('T')[0]);
   let messages = $state([
-    { text: `Olá${profile.data?.name ? ', ' + profile.data.name : ''}! 👋 O que deseja registrar hoje? Refeição, sono ou condição de saúde.`, side: 'bot' },
+    { text: `Olá${profile.data?.name ? ', ' + profile.data.name : ''}! 👋 Que bom ter você aqui! 💚\n\nEstou aqui para te ajudar a alcançar seus objetivos de saúde. O que deseja registrar?\n\n🍽️ Refeições\n💧 Água\n😴 Sono\n🩹 Saúde\n\nÉ só descrever e eu cuido do resto! 💪`, side: 'bot' },
   ]);
   let sending = $state(false);
 
@@ -26,6 +27,10 @@
     }
     if (sending) return;
 
+    await sendMessage(text);
+  }
+
+  async function sendMessage(text) {
     messages.push({ text, side: 'user' });
     input = '';
     sending = true;
@@ -91,7 +96,7 @@
 <!-- FAB -->
 <button
   onclick={toggle}
-  class="fixed bottom-5 right-5 w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg z-50 hover:bg-slate-800 active:scale-90 transition-all sm:bottom-8 sm:right-8"
+  class="fixed bottom-5 right-5 w-14 h-14 rounded-full bg-slate-900 dark:bg-slate-700 text-white flex items-center justify-center shadow-lg z-50 hover:bg-slate-800 dark:hover:bg-slate-600 active:scale-90 transition-all sm:bottom-8 sm:right-8"
 >
   {#if open}
     <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -106,11 +111,11 @@
 
 <!-- Chat Modal -->
 {#if open}
-  <div class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[85vw] max-w-[400px] max-h-[75dvh] bg-white rounded-3xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden z-50 sm:left-auto sm:right-8 sm:translate-x-0 sm:bottom-28 sm:w-[400px]"
+  <div class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[85vw] max-w-[400px] max-h-[75dvh] bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 flex flex-col overflow-hidden z-50 sm:left-auto sm:right-8 sm:translate-x-0 sm:bottom-28 sm:w-[400px]"
     style="animation: slideUp 0.3s ease-out"
   >
     <!-- Header -->
-    <div class="px-5 py-4 bg-slate-900 text-white flex justify-between items-center">
+    <div class="px-5 py-4 bg-slate-900 dark:bg-slate-900 text-white flex justify-between items-center">
       <div class="flex items-center gap-2">
         <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
         <span class="text-sm font-bold tracking-tight">Health Assistant</span>
@@ -123,21 +128,26 @@
     </div>
 
     <!-- Date selector -->
-    <div class="px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+    <div class="px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
       <label for="chat-date" class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Data do Registro</label>
       <input id="chat-date" type="date" bind:value={chatDate}
-        class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 w-full outline-none focus:ring-2 focus:ring-emerald-500" />
+        class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 w-full outline-none focus:ring-2 focus:ring-emerald-500" />
+    </div>
+
+    <!-- Quick Log Buttons -->
+    <div class="px-4 pt-4 pb-2 bg-slate-50 dark:bg-slate-900/50">
+      <QuickLog onLog={sendMessage} />
     </div>
 
     <!-- Messages -->
-    <div class="flex-1 min-h-[200px] overflow-y-auto p-5 flex flex-col gap-3 bg-slate-50">
+    <div class="flex-1 min-h-[200px] overflow-y-auto p-5 flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/30">
       {#each messages as msg}
         <div class="px-4 py-3 rounded-2xl max-w-[85%] text-sm leading-relaxed shadow-sm
           {msg.side === 'user'
             ? 'self-end bg-emerald-500 text-white rounded-br-sm'
-            : 'self-start bg-white text-slate-700 border border-slate-200 rounded-bl-sm'}
-          {msg.success ? 'font-bold !text-emerald-600' : ''}
-          {msg.error ? '!text-red-500' : ''}"
+            : 'self-start bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-bl-sm'}
+          {msg.success ? 'font-bold !text-emerald-600 dark:!text-emerald-400' : ''}
+          {msg.error ? '!text-red-500 dark:!text-red-400' : ''}"
         >
           {msg.text}
         </div>
@@ -145,19 +155,19 @@
     </div>
 
     <!-- Input -->
-    <div class="px-4 py-3 bg-white border-t border-slate-100 flex gap-2 items-center">
+    <div class="px-4 py-3 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex gap-2 items-center">
       <input
         type="text"
         bind:value={input}
         onkeydown={handleKeydown}
         placeholder="Descreva sua refeição..."
         disabled={sending}
-        class="flex-1 h-12 px-4 bg-slate-50 rounded-2xl text-sm border-none outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+        class="flex-1 h-12 px-4 bg-slate-50 dark:bg-slate-900 rounded-2xl text-sm border-none outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 dark:text-slate-300"
       />
       <button
         onclick={send}
         disabled={sending || !input.trim()}
-        class="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-slate-800 disabled:opacity-50 transition-all"
+        class="w-12 h-12 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl flex items-center justify-center hover:bg-slate-800 dark:hover:bg-slate-600 disabled:opacity-50 transition-all"
         aria-label="Enviar mensagem"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 rotate-90" viewBox="0 0 20 20" fill="currentColor">

@@ -19,18 +19,18 @@
   <div
     class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] animate-slide-down"
   >
-    <div class="bg-white border border-amber-200 shadow-xl shadow-amber-500/20 rounded-3xl px-6 py-4 flex items-center gap-4 min-w-[280px]">
-      <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-yellow-200 flex items-center justify-center text-3xl shadow-inner">
+    <div class="bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900 shadow-xl shadow-amber-500/20 rounded-3xl px-6 py-4 flex items-center gap-4 min-w-[280px]">
+      <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-yellow-200 dark:from-amber-950/50 dark:to-yellow-950/50 flex items-center justify-center text-3xl shadow-inner">
         {current.icon || '🏆'}
       </div>
       <div class="flex-1">
-        <p class="text-[10px] font-extrabold text-amber-600 uppercase tracking-widest">Nova Conquista!</p>
-        <p class="text-sm font-black text-slate-900 mt-0.5">{current.name}</p>
-        <p class="text-[10px] text-slate-500 font-medium mt-0.5">{current.description || ''}</p>
+        <p class="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Nova Conquista!</p>
+        <p class="text-sm font-black text-slate-900 dark:text-slate-100 mt-0.5">{current.name}</p>
+        <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">{current.description || ''}</p>
       </div>
       <button
         onclick={() => { visible = false; }}
-        class="text-slate-300 hover:text-slate-500 transition-colors"
+        class="text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 transition-colors"
         aria-label="Fechar"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

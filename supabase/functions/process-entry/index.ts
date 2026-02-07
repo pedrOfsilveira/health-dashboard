@@ -8,10 +8,13 @@ const GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN")!;
 const AI_MODEL = "gpt-4o-mini";
 const AI_URL = "https://models.inference.ai.azure.com/chat/completions";
 
-const SYSTEM_PROMPT = `Você é um assistente nutricional. Analise o texto do usuário e retorne APENAS um JSON válido (sem markdown, sem explicação).
+const SYSTEM_PROMPT = `Você é um coach nutricional motivador e encorajador, sempre usando um tom amigável e empático. Analise o texto do usuário e retorne APENAS um JSON válido (sem markdown, sem explicação).
 
 Se for refeição/comida, retorne:
 {"type": "meal", "name": "Nome da Refeição", "items": [{"name": "item", "kcal": 100, "ptn": 10, "carb": 20, "fat": 5}]}
+
+Se for água/hidratação (bebi água, tomei água, 500ml de água, etc), retorne:
+{"type": "water", "amount_ml": 500}
 
 Se for dado de sono, retorne:
 {"type": "sleep", "start": "HH:MM", "end": "HH:MM", "quality": "BOA"}
@@ -23,12 +26,14 @@ Se for uma nota/observação geral, retorne:
 {"type": "note", "text": "texto"}
 
 Regras:
-- Estime calorias e macros com base em tabelas nutricionais brasileiras (TACO/IBGE)
+- Estime calorias e macros com base em tabelas nutricionais brasileiras (TACO/IBGE) ou dados de marcas específicas, caso mencionadas. Use o bom senso para estimar porções e quantidades.
 - Se o usuário informar peso (ex: "200g de arroz"), use valores proporcionais
 - Se não informar peso, estime uma porção média
 - O campo "name" da refeição deve ser o tipo (Almoço, Jantar, Lanche, Café da manhã, etc)
 - Sempre retorne valores numéricos inteiros para kcal, ptn, carb, fat
-- Qualquer menção a sintomas, doenças, dor, febre, gripe, resfriado, medicamentos deve ser classificado como "health"`;
+- Qualquer menção a sintomas, doenças, dor, febre, gripe, resfriado, medicamentos deve ser classificado como "health"
+- Para água, aceite formatos como "bebi 500ml", "tomei 1 copo", "1L de água" (1 copo = 250ml, 1L = 1000ml)
+- Seja positivo e celebre o progresso do usuário!`;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -228,7 +233,20 @@ serve(async (req) => {
       }
 
       const itemNames = items.map((i: any) => i.name).join(", ");
-      responseMsg = `✅ ${parsed.name}: ${itemNames} (~${totalKcal} kcal, ${totalPtn}g ptn)`;
+      
+      // Motivational messages based on protein content
+      let motivationalMsg = "";
+      if (totalPtn >= 30) {
+        motivationalMsg = " 💪 Excelente fonte de proteína!";
+      } else if (totalPtn >= 20) {
+        motivationalMsg = " 👏 Ótimo trabalho!";
+      } else if (totalKcal >= 500) {
+        motivationalMsg = " 🎯 Refeição completa registrada!";
+      } else {
+        motivationalMsg = " ✨ Muito bem!";
+      }
+      
+      responseMsg = `✅ ${parsed.name}: ${itemNames} (~${totalKcal} kcal, ${totalPtn}g ptn)${motivationalMsg}`;
     } else if (parsed.type === "sleep") {
       await supabase
         .from("days")
@@ -240,7 +258,59 @@ serve(async (req) => {
         .eq("date", date)
         .eq("user_id", userId);
 
-      responseMsg = `🌙 Sono registrado: ${parsed.start} → ${parsed.end} (${parsed.quality})`;
+      // Calculate sleep duration for motivational message
+      const [h1, m1] = parsed.start.split(':').map(Number);
+      const [h2, m2] = parsed.end.split(':').map(Number);
+      let diffMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
+      if (diffMinutes < 0) diffMinutes += 24 * 60;
+      const hours = Math.floor(diffMinutes / 60);
+      
+      let sleepMsg = "";
+      if (hours >= 8) {
+        sleepMsg = " 🌟 Sono excelente! Continue assim!";
+      } else if (hours >= 7) {
+        sleepMsg = " 😴 Ótimo descanso!";
+      } else if (hours >= 6) {
+        sleepMsg = " 💤 Bom sono! Tente dormir um pouco mais amanhã.";
+      } else {
+        sleepMsg = " ⏰ Registrado! Lembre-se: 7-9h é o ideal.";
+      }
+
+      responseMsg = `🌙 Sono registrado: ${parsed.start} → ${parsed.end} (${parsed.quality})${sleepMsg}`;
+    } else if (parsed.type === "water") {
+      // Hidratação
+      const amountMl = parsed.amount_ml || 250;
+      
+      // Insert water log
+      const progress = Math.round((newTotal / 2000) * 100);
+      
+      if (newTotal >= 2000) {
+        responseMsg = `💧 +${amountMl}ml registrado! 🎉 Parabéns! Meta de hidratação alcançada (${newTotal}ml)! Você está cuidando muito bem da sua saúde! 💪`;
+      } else if (remaining <= 500) {
+        responseMsg = `💧 +${amountMl}ml registrado! 🔥 Quase lá campeão(ã)! Faltam apenas ${remaining}ml (${100 - progress}%) para bater a meta!`;
+      } else if (progress >= 50) {
+        responseMsg = `💧 +${amountMl}ml (${glassesEquiv > 0 ? `~${glassesEquiv} copo${glassesEquiv > 1 ? 's' : ''}` : 'menos que 1 copo'}) registrado! 👍 Você já está em ${progress}% da meta! Continue assim!`;
+      } else {
+        responseMsg = `💧 +${amountMl}ml (${glassesEquiv > 0 ? `~${glassesEquiv} copo${glassesEquiv > 1 ? 's' : ''}` : 'menos que 1 copo'}) registrado! 💚 Ótimo começo! Total: ${newTotal}ml / 2000ml (${progress}%)
+      const { data: day } = await supabase.from("days").select("water_ml").eq("date", date).eq("user_id", userId).single();
+      const newTotal = (day?.water_ml || 0) + amountMl;
+      
+      await supabase
+        .from("days")
+        .update({ water_ml: newTotal, water_target: 2000 })
+        .eq("date", date)
+        .eq("user_id", userId);💚 Cuidando da sua saúde! Suas sugestões serão adaptadas para sua recuperação.`;
+    } else {
+      // Nota
+      const { data: day } = await supabase.from("days").select("notes").eq("date", date).eq("user_id", userId).single();
+      const existing = day?.notes || "";
+      const newNotes = (existing + "\n" + (parsed.text || text)).trim();
+      await supabase.from("days").update({ notes: newNotes }).eq("date", date).eq("user_id", userId);
+
+      responseMsg = `📝 Nota registrada com sucesso! ✍️ registrado! Quase lá - faltam apenas ${remaining}ml para a meta!`;
+      } else {
+        responseMsg = `💧 +${amountMl}ml (${glassesEquiv > 0 ? `~${glassesEquiv} copo${glassesEquiv > 1 ? 's' : ''}` : 'menos que 1 copo'}) registrado! Total: ${newTotal}ml / 2000ml`;
+      }
     } else if (parsed.type === "health") {
       // Condição de saúde
       const healthTag = `[SAÚDE] ${parsed.condition}: ${parsed.details || text} (${parsed.severity || "leve"})`;
