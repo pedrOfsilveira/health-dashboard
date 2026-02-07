@@ -70,6 +70,55 @@
     }
   }
 
+  async function removeWater(amount) {
+    if (adding || waterMl <= 0) return;
+    adding = true;
+
+    try {
+      // Insert negative water log
+      const { error: logError } = await supabase
+        .from('water_logs')
+        .insert({ 
+          user_id: auth.session.user.id,
+          date,
+          amount_ml: -amount 
+        });
+
+      if (logError) throw logError;
+
+      // Update day's total
+      const { data: day, error: dayError } = await supabase
+        .from('days')
+        .select('water_ml')
+        .eq('user_id', auth.session.user.id)
+        .eq('date', date)
+        .maybeSingle();
+
+      const newTotal = Math.max(0, (day?.water_ml || 0) - amount);
+
+      const { error: updateError } = await supabase
+        .from('days')
+        .upsert({
+          user_id: auth.session.user.id,
+          date,
+          water_ml: newTotal,
+          water_target: TARGET
+        }, { 
+          onConflict: 'user_id,date' 
+        });
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      waterMl = newTotal;
+    } catch (err) {
+      console.error('Error removing water:', err);
+      alert('Erro ao remover água');
+    } finally {
+      adding = false;
+    }
+  }
+
   function showCelebration() {
     // Simple visual feedback
     const btn = document.getElementById('water-tracker');
@@ -140,10 +189,26 @@
           disabled={adding}
           class="p-2 bg-white dark:bg-slate-800 rounded-lg border-2 border-blue-200 dark:border-blue-900 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-all text-xs font-bold text-blue-600 dark:text-blue-400 disabled:opacity-50"
         >
-          {amount}ml
+          +{amount}ml
         </button>
       {/each}
     </div>
+
+    <!-- Quick Remove Buttons -->
+    {#if waterMl > 0}
+      <div class="grid grid-cols-4 gap-2 mb-2">
+        {#each QUICK_AMOUNTS as amount}
+          <button
+            onclick={() => removeWater(amount)}
+            disabled={adding}
+            class="p-2 bg-white dark:bg-slate-800 rounded-lg border-2 border-red-200 dark:border-red-900 hover:border-red-400 dark:hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-all text-xs font-bold text-red-600 dark:text-red-400 disabled:opacity-50"
+          >
+            -{amount}ml
+          </button>
+        {/each}
+      </div>
+    {/if}
+
     <button
       onclick={() => showCustom = true}
       class="w-full py-2 text-xs text-blue-600 dark:text-blue-400 font-semibold hover:bg-blue-50 dark:hover:bg-blue-950 rounded-lg transition-colors"

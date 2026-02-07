@@ -99,13 +99,13 @@
             </button>
             <button
               onclick={() => { menuOpen = false; navigate('dashboard'); }}
-              class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-3"
+              class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
             >
               <span>📊</span> Dashboard
             </button>
             <button
               onclick={() => { menuOpen = false; navigate('friends'); }}
-              class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-3 relative"
+              class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3 relative"
             >
               <span>👥</span> Amigos
               {#if social.pendingCount > 0}
@@ -116,14 +116,14 @@
             </button>
             <button
               onclick={() => { menuOpen = false; navigate('challenges'); }}
-              class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-3"
+              class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
             >
               <span>⚡</span> Desafios
             </button>
-            <hr class="my-1 border-slate-100" />
+            <hr class="my-1 border-slate-100 dark:border-slate-700" />
             <button
               onclick={handleLogout}
-              class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-3"
+              class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors flex items-center gap-3"
             >
               <span>🚪</span> Sair
             </button>

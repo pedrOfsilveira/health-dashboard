@@ -1,7 +1,6 @@
 <script>
   import { callProcessEntry } from './supabase.js';
   import { profile, handleGamificationUpdate } from './stores.svelte.js';
-  import QuickLog from './QuickLog.svelte';
 
   let { selectedDate = $bindable(), onEntryLogged = () => {} } = $props();
 
@@ -9,7 +8,7 @@
   let input = $state('');
   let chatDate = $state(selectedDate || new Date().toISOString().split('T')[0]);
   let messages = $state([
-    { text: `Olá${profile.data?.name ? ', ' + profile.data.name : ''}! 👋 Que bom ter você aqui! 💚\n\nEstou aqui para te ajudar a alcançar seus objetivos de saúde. O que deseja registrar?\n\n🍽️ Refeições\n💧 Água\n😴 Sono\n🩹 Saúde\n\nÉ só descrever e eu cuido do resto! 💪`, side: 'bot' },
+    { text: `Olá${profile.data?.name ? ', ' + profile.data.name : ''}! Estou aqui para te ajudar a alcançar seus objetivos de saúde.\n\nO que deseja registrar?\n\n• Refeições\n• Água\n• Sono\n• Saúde\n\nÉ só descrever e eu cuido do resto!`, side: 'bot' },
   ]);
   let sending = $state(false);
 
@@ -132,11 +131,6 @@
       <label for="chat-date" class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Data do Registro</label>
       <input id="chat-date" type="date" bind:value={chatDate}
         class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 w-full outline-none focus:ring-2 focus:ring-emerald-500" />
-    </div>
-
-    <!-- Quick Log Buttons -->
-    <div class="px-4 pt-4 pb-2 bg-slate-50 dark:bg-slate-900/50">
-      <QuickLog onLog={sendMessage} />
     </div>
 
     <!-- Messages -->

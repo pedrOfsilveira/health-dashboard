@@ -1,8 +1,9 @@
 <script>
   import { onMount } from 'svelte';
-  import { supabase, fetchDays, fetchMealsWithItems, deleteMeal as deleteMealApi, callSuggestMeals } from './supabase.js';
+  import { supabase, fetchDays, fetchMealsWithItems, deleteMeal as deleteMealApi, callSuggestMeals, callProcessEntry } from './supabase.js';
   import { auth, goals, profile, streak, social, handleGamificationUpdate } from './stores.svelte.js';
   import Header from './Header.svelte';
+  import QuickLog from './QuickLog.svelte';
   import Chat from './Chat.svelte';
   import AchievementToast from './AchievementToast.svelte';
   import ConfettiCelebration from './ConfettiCelebration.svelte';
@@ -45,6 +46,43 @@
   // Confetti trigger
   let showConfetti = $state(false);
   let lastConfettiDate = $state(null);
+  
+  // Quick Log & Notification
+  let processingLog = $state(false);
+  let notification = $state({ show: false, message: '', type: 'info' });
+  let notifTimeout;
+
+  function showNotification(msg, type = 'info') {
+    notification = { show: true, message: msg, type };
+    clearTimeout(notifTimeout);
+    notifTimeout = setTimeout(() => {
+      notification.show = false;
+    }, 4000);
+  }
+
+  async function handleQuickLog(text) {
+    if (processingLog) return;
+    processingLog = true;
+    showNotification('Processando registro...', 'info');
+
+    try {
+      const result = await callProcessEntry(text, selectedDate || new Date().toISOString().split('T')[0]);
+
+      if (result.success) {
+        await loadData();
+        if (result.gamification) {
+          handleGamificationUpdate(result.gamification);
+        }
+        showNotification(result.message || 'Registrado com sucesso!', 'success');
+      } else {
+        showNotification('Erro: ' + (result.error || 'Falha'), 'error');
+      }
+    } catch (e) {
+      showNotification('Erro de rede: ' + e.message, 'error');
+    } finally {
+      processingLog = false;
+    }
+  }
 
   $effect(() => {
     if (pctKcal >= 90 && pctPtn >= 90 && currentDay && currentDay.summary.kcal > 0 && selectedDate !== lastConfettiDate) {
@@ -263,6 +301,12 @@
 
 <ConfettiCelebration bind:trigger={showConfetti} />
 <AchievementToast />
+{#if notification.show}
+  <div class="fixed top-24 left-1/2 -translate-x-1/2 z-[1000] bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-3 rounded-2xl shadow-xl text-xs font-bold flex items-center gap-3 animate-pulse max-w-[90vw] text-center border border-slate-700 dark:border-slate-200">
+    <span class="text-lg">{notification.type === 'error' ? '❌' : notification.type === 'success' ? '✅' : '⏳'}</span>
+    <span>{notification.message}</span>
+  </div>
+{/if}
 <PullToRefresh onRefresh={loadData} />
 
 <div class="w-full max-w-[500px] mx-auto px-4 pb-24">
@@ -299,13 +343,14 @@
         {formatDisplayDate(selectedDate)}
       </p>
 
+      
       <!-- Daily Goals Card -->
       <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6">
         <div class="flex items-center gap-3 mb-5">
           <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Metas Diárias</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
         </div>
-
+        
         <!-- Calories -->
         <div class="mb-6">
           <div class="flex justify-between items-end mb-3">
@@ -392,12 +437,14 @@
         </div>
       {/if}
 
+      
       <!-- Meals Section -->
       <div class="flex items-center gap-3 mb-4">
-        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Diário Nutricional</span>
-        <div class="flex-1 h-px bg-slate-200"></div>
+        <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Diário Nutricional</span>
+        <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
       </div>
-
+      <QuickLog onLog={handleQuickLog} />
+      
       {#if currentDay.meals.length === 0}
         <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 text-center mb-6">
           <p class="text-4xl mb-3">🍽️</p>
