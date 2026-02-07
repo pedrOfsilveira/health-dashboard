@@ -2,7 +2,7 @@
  * Global reactive stores for auth, profile, goals, and app routing.
  * Uses Svelte 5 runes in a .svelte.js module.
  */
-import { supabase, fetchProfile, fetchStreak, fetchAchievements } from './supabase.js';
+import { supabase, fetchProfile, fetchStreak, fetchAchievements, fetchFriendships, fetchPendingRequests, fetchActiveChallenges } from './supabase.js';
 
 // ─── Auth State ─────────────────────────────────────────────
 
@@ -90,12 +90,75 @@ export function getXpForNextLevel(totalXp) {
 // ─── Router ─────────────────────────────────────────────────
 
 export const router = $state({
-  /** @type {'login' | 'register' | 'setup' | 'dashboard' | 'profile'} */
+  /** @type {'login' | 'register' | 'setup' | 'dashboard' | 'profile' | 'friends' | 'challenges'} */
   page: 'login',
 });
 
 export function navigate(page) {
   router.page = page;
+}
+
+// ─── Social / Friends ───────────────────────────────────────
+
+export const social = $state({
+  /** @type {any[]} */
+  friends: [],
+  /** @type {any[]} */
+  pendingRequests: [],
+  /** @type {any[]} */
+  activeChallenges: [],
+  pendingCount: 0,
+  loading: false,
+});
+
+export async function loadSocialData(userId) {
+  social.loading = true;
+  try {
+    const [pending, challenges] = await Promise.all([
+      fetchPendingRequests(userId),
+      fetchActiveChallenges(userId),
+    ]);
+    social.pendingRequests = pending || [];
+    social.pendingCount = pending?.length || 0;
+    social.activeChallenges = challenges || [];
+  } catch (err) {
+    console.error('Error loading social data:', err);
+  } finally {
+    social.loading = false;
+  }
+}
+
+// ─── Handle gamification response from chat ────────────────
+
+export function handleGamificationUpdate(gamification) {
+  if (!gamification) return;
+
+  // Update streak in real-time
+  if (gamification.streakUpdated && gamification.currentStreak !== undefined) {
+    streak.current = gamification.currentStreak;
+    if (gamification.currentStreak > streak.longest) {
+      streak.longest = gamification.currentStreak;
+    }
+  }
+
+  // Update XP
+  if (gamification.xpGained > 0) {
+    xp.total += gamification.xpGained;
+    const lvl = computeLevel(xp.total);
+    xp.level = lvl.level;
+    xp.title = lvl.title;
+  }
+
+  // Show badge toasts
+  if (gamification.badgesUnlocked?.length > 0) {
+    for (const badge of gamification.badgesUnlocked) {
+      achievements.unlocked.push({
+        badge_id: badge.id,
+        badge_definitions: badge,
+      });
+      achievements.latest = badge;
+    }
+  }
 }
 
 // ─── TDEE Calculation ───────────────────────────────────────
@@ -237,6 +300,9 @@ async function loadUserData(userId) {
         xp.level = lvl.level;
         xp.title = lvl.title;
       }
+
+      // Load social data (non-blocking)
+      loadSocialData(userId);
 
       router.page = 'dashboard';
     }

@@ -7,6 +7,8 @@
   import ProfileSetup from './lib/ProfileSetup.svelte';
   import Dashboard from './lib/Dashboard.svelte';
   import Profile from './lib/Profile.svelte';
+  import Friends from './lib/Friends.svelte';
+  import Challenges from './lib/Challenges.svelte';
 
   onMount(() => {
     initAuth();
@@ -27,6 +29,10 @@
     <ProfileSetup />
   {:else if router.page === 'profile'}
     <Profile />
+  {:else if router.page === 'friends'}
+    <Friends />
+  {:else if router.page === 'challenges'}
+    <Challenges />
   {:else if router.page === 'dashboard'}
     <Dashboard />
   {:else}

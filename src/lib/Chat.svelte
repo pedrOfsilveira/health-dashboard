@@ -1,6 +1,6 @@
 <script>
   import { callProcessEntry } from './supabase.js';
-  import { profile } from './stores.svelte.js';
+  import { profile, handleGamificationUpdate } from './stores.svelte.js';
 
   let { selectedDate = $bindable(), onEntryLogged = () => {} } = $props();
 
@@ -19,7 +19,12 @@
 
   async function send() {
     const text = input.trim();
-    if (!text || sending) return;
+    if (!text) return;
+    if (text.length < 2) {
+      messages.push({ text: '⚠️ Mensagem muito curta. Descreva sua refeição, sono ou saúde.', side: 'bot', error: true });
+      return;
+    }
+    if (sending) return;
 
     messages.push({ text, side: 'user' });
     input = '';
@@ -33,6 +38,32 @@
 
       if (result.success) {
         messages[statusIdx] = { text: result.message, side: 'bot', success: true };
+
+        // Handle gamification updates (streak, badges, XP)
+        if (result.gamification) {
+          handleGamificationUpdate(result.gamification);
+
+          // Show badge notifications in chat
+          if (result.gamification.badgesUnlocked?.length > 0) {
+            for (const badge of result.gamification.badgesUnlocked) {
+              messages.push({
+                text: `🏆 Conquista desbloqueada: ${badge.icon} ${badge.name} (+${badge.xp} XP)`,
+                side: 'bot',
+                success: true,
+              });
+            }
+          }
+
+          // Show XP gain
+          if (result.gamification.xpGained > 0) {
+            messages.push({
+              text: `⚡ +${result.gamification.xpGained} XP ganhos!`,
+              side: 'bot',
+              success: true,
+            });
+          }
+        }
+
         onEntryLogged();
       } else {
         messages[statusIdx] = { text: '❌ Erro: ' + (result.error || 'Falha'), side: 'bot', error: true };

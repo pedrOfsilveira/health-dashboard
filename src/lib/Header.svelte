@@ -1,6 +1,6 @@
 <script>
   import { signOut } from './supabase.js';
-  import { auth, profile, streak, xp, getXpForNextLevel, navigate } from './stores.svelte.js';
+  import { auth, profile, streak, xp, social, getXpForNextLevel, navigate } from './stores.svelte.js';
 
   let menuOpen = $state(false);
 
@@ -43,11 +43,16 @@
     <div class="relative">
       <button
         onclick={() => menuOpen = !menuOpen}
-        class="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg hover:bg-slate-800 transition-colors"
+        class="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg hover:bg-slate-800 transition-colors relative"
       >
         <span class="text-sm font-black">
           {profile.data?.name?.[0]?.toUpperCase() || '?'}
         </span>
+        {#if social.pendingCount > 0}
+          <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-slate-50 animate-pulse">
+            {social.pendingCount}
+          </span>
+        {/if}
       </button>
 
       {#if menuOpen}
@@ -79,6 +84,23 @@
               class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-3"
             >
               <span>📊</span> Dashboard
+            </button>
+            <button
+              onclick={() => { menuOpen = false; navigate('friends'); }}
+              class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-3 relative"
+            >
+              <span>👥</span> Amigos
+              {#if social.pendingCount > 0}
+                <span class="ml-auto w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">
+                  {social.pendingCount}
+                </span>
+              {/if}
+            </button>
+            <button
+              onclick={() => { menuOpen = false; navigate('challenges'); }}
+              class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-3"
+            >
+              <span>⚡</span> Desafios
             </button>
             <hr class="my-1 border-slate-100" />
             <button

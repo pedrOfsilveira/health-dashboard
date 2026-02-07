@@ -68,3 +68,12 @@ Empty chat messages can be sent. Add a check before calling the Edge Function.
 - [x] Individual macro goals with percentages
 - [x] Supabase Edge Functions (no worker needed)
 - [x] Serverless deploy (Vercel/GitHub Pages + Supabase)
+- [x] Streak Counter & Gamification (UI + backend auto-update on every entry)
+- [x] Achievement Badges (auto-unlock: first_meal, streaks, protein_master, goal_hit, early_bird, sleep_master, level milestones)
+- [x] Animated Confetti (triggers on 90%+ kcal & protein)
+- [x] XP & Leveling System (10 levels, auto-XP on entries/badges/challenges)
+- [x] Input Validation (empty/short messages blocked in chat)
+- [x] Social / Friend System (search by email, invite, accept/reject, friend list with stats)
+- [x] Challenge System (solo & duo challenges, 12 pre-seeded challenges, progress tracking, XP rewards)
+- [x] Friend Leaderboard (XP-ranked friend comparison on dashboard)
+- [x] Gamification Engine in Edge Function (auto streak, badge, XP, challenge progress on every log)

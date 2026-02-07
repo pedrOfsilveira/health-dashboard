@@ -1,11 +1,12 @@
 <script>
   import { onMount } from 'svelte';
   import { supabase, fetchDays, fetchMealsWithItems, deleteMeal as deleteMealApi, callSuggestMeals } from './supabase.js';
-  import { auth, goals, profile, streak } from './stores.svelte.js';
+  import { auth, goals, profile, streak, social, handleGamificationUpdate } from './stores.svelte.js';
   import Header from './Header.svelte';
   import Chat from './Chat.svelte';
   import AchievementToast from './AchievementToast.svelte';
   import ConfettiCelebration from './ConfettiCelebration.svelte';
+  import Leaderboard from './Leaderboard.svelte';
 
   let allData = $state({});
   let selectedDate = $state(null);
@@ -533,6 +534,42 @@
         <p class="text-xs text-slate-400">Toque no ícone de chat no canto inferior direito.</p>
       </div>
     {/if}
+
+    <!-- Active Challenges Summary -->
+    {#if social.activeChallenges.length > 0}
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Desafios Ativos</span>
+        <div class="flex-1 h-px bg-slate-200"></div>
+      </div>
+      <div class="space-y-3 mb-6">
+        {#each social.activeChallenges.filter(p => p.challenge_instances?.status === 'active').slice(0, 3) as participation (participation.id)}
+          {@const instance = participation.challenge_instances}
+          {@const challenge = instance?.challenges}
+          {@const progress = participation.progress || 0}
+          {@const target = challenge?.target_value || 1}
+          {@const pct = Math.min(100, Math.round((progress / target) * 100))}
+          <div class="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3">
+            <span class="text-2xl">{challenge?.icon || '🏆'}</span>
+            <div class="flex-1">
+              <p class="text-xs font-black text-slate-800">{challenge?.title}</p>
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mt-1.5">
+                <div class="h-full bg-emerald-500 rounded-full transition-all" style="width: {pct}%"></div>
+              </div>
+            </div>
+            <span class="text-[10px] font-black text-emerald-600">{pct}%</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    <!-- Leaderboard -->
+    <div class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 mb-6">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Ranking de Amigos</span>
+        <div class="flex-1 h-px bg-slate-200"></div>
+      </div>
+      <Leaderboard />
+    </div>
 
     <footer class="pb-8 text-center">
       <div class="w-8 h-1 bg-slate-200 mx-auto rounded-full mb-6"></div>

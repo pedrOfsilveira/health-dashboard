@@ -176,3 +176,232 @@ export async function callSuggestMeals(date, remaining, goals, mealHistory, heal
   });
   return res.json();
 }
+
+// ─── Friend helpers ─────────────────────────────────────────
+
+export async function searchUserByEmail(email) {
+  const { data, error } = await supabase.rpc('search_user_by_email', {
+    search_email: email,
+  });
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+export async function sendFriendRequest(addresseeId) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('friendships')
+    .insert({
+      requester_id: user.id,
+      addressee_id: addresseeId,
+      status: 'pending',
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function respondFriendRequest(friendshipId, accept) {
+  const { data, error } = await supabase
+    .from('friendships')
+    .update({ status: accept ? 'accepted' : 'rejected' })
+    .eq('id', friendshipId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function removeFriend(friendshipId) {
+  const { error } = await supabase
+    .from('friendships')
+    .delete()
+    .eq('id', friendshipId);
+  if (error) throw error;
+}
+
+export async function fetchFriendships(userId) {
+  const { data, error } = await supabase
+    .from('friendships')
+    .select('*')
+    .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function fetchFriendProfiles(userId) {
+  // Get accepted friendships
+  const { data: friendships, error: fErr } = await supabase
+    .from('friendships')
+    .select('requester_id, addressee_id')
+    .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
+    .eq('status', 'accepted');
+  if (fErr) throw fErr;
+
+  if (!friendships || friendships.length === 0) return [];
+
+  const friendIds = friendships.map(f =>
+    f.requester_id === userId ? f.addressee_id : f.requester_id
+  );
+
+  // Fetch profiles + streaks for friends
+  const { data: profiles, error: pErr } = await supabase
+    .from('profiles')
+    .select('user_id, name, xp_total')
+    .in('user_id', friendIds);
+  if (pErr) throw pErr;
+
+  const { data: streaks, error: sErr } = await supabase
+    .from('streaks')
+    .select('user_id, current_streak')
+    .in('user_id', friendIds);
+  if (sErr) throw sErr;
+
+  const streakMap = {};
+  (streaks || []).forEach(s => { streakMap[s.user_id] = s.current_streak; });
+
+  return (profiles || []).map(p => ({
+    ...p,
+    current_streak: streakMap[p.user_id] || 0,
+  }));
+}
+
+// ─── Challenge helpers ──────────────────────────────────────
+
+export async function fetchChallenges() {
+  const { data, error } = await supabase
+    .from('challenges')
+    .select('*')
+    .order('difficulty', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function fetchActiveChallenges(userId) {
+  const { data, error } = await supabase
+    .from('challenge_participants')
+    .select(`
+      *,
+      challenge_instances(
+        *,
+        challenges(*)
+      )
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function fetchChallengeParticipants(instanceId) {
+  const { data, error } = await supabase
+    .from('challenge_participants')
+    .select('*, profiles:user_id(name, xp_total)')
+    .eq('instance_id', instanceId)
+    .order('progress', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function startChallenge(challengeId, userId, friendId = null) {
+  // Get challenge info
+  const { data: challenge } = await supabase
+    .from('challenges')
+    .select('*')
+    .eq('id', challengeId)
+    .single();
+  if (!challenge) throw new Error('Desafio não encontrado');
+
+  const startDate = new Date().toISOString().split('T')[0];
+  const endDate = new Date(Date.now() + challenge.duration_days * 86400000)
+    .toISOString()
+    .split('T')[0];
+
+  // Create instance
+  const { data: instance, error: instErr } = await supabase
+    .from('challenge_instances')
+    .insert({
+      challenge_id: challengeId,
+      creator_id: userId,
+      start_date: startDate,
+      end_date: endDate,
+      status: 'active',
+    })
+    .select()
+    .single();
+  if (instErr) throw instErr;
+
+  // Add creator as participant
+  await supabase.from('challenge_participants').insert({
+    instance_id: instance.id,
+    user_id: userId,
+    progress: 0,
+  });
+
+  // Add friend as participant if duo
+  if (friendId && challenge.type === 'duo') {
+    await supabase.from('challenge_participants').insert({
+      instance_id: instance.id,
+      user_id: friendId,
+      progress: 0,
+    });
+  }
+
+  return instance;
+}
+
+export async function fetchLeaderboard(userId) {
+  // Get user + friends data for leaderboard
+  const friends = await fetchFriendProfiles(userId);
+  const { data: ownProfile } = await supabase
+    .from('profiles')
+    .select('user_id, name, xp_total')
+    .eq('user_id', userId)
+    .single();
+  const { data: ownStreak } = await supabase
+    .from('streaks')
+    .select('current_streak')
+    .eq('user_id', userId)
+    .single();
+
+  const leaderboard = [
+    ...(ownProfile ? [{
+      ...ownProfile,
+      current_streak: ownStreak?.current_streak || 0,
+      isMe: true,
+    }] : []),
+    ...friends.map(f => ({ ...f, isMe: false })),
+  ];
+
+  return leaderboard.sort((a, b) => (b.xp_total || 0) - (a.xp_total || 0));
+}
+
+export async function fetchPendingRequests(userId) {
+  const { data, error } = await supabase
+    .from('friendships')
+    .select('*')
+    .eq('addressee_id', userId)
+    .eq('status', 'pending');
+  if (error) throw error;
+
+  if (!data || data.length === 0) return [];
+
+  // Fetch requester profiles
+  const requesterIds = data.map(f => f.requester_id);
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('user_id, name')
+    .in('user_id', requesterIds);
+
+  const profileMap = {};
+  (profiles || []).forEach(p => { profileMap[p.user_id] = p; });
+
+  return data.map(f => ({
+    ...f,
+    requester_name: profileMap[f.requester_id]?.name || 'Usuário',
+  }));
+}
