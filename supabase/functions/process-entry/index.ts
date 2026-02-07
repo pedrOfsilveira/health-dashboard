@@ -237,13 +237,13 @@ serve(async (req) => {
       // Motivational messages based on protein content
       let motivationalMsg = "";
       if (totalPtn >= 30) {
-        motivationalMsg = " 💪 Excelente fonte de proteína!";
+        motivationalMsg = " Excelente fonte de proteína!";
       } else if (totalPtn >= 20) {
-        motivationalMsg = " 👏 Ótimo trabalho!";
+        motivationalMsg = " Ótimo trabalho!";
       } else if (totalKcal >= 500) {
-        motivationalMsg = " 🎯 Refeição completa registrada!";
+        motivationalMsg = " Refeição completa registrada!";
       } else {
-        motivationalMsg = " ✨ Muito bem!";
+        motivationalMsg = " Registrado com sucesso!";
       }
       
       responseMsg = `✅ ${parsed.name}: ${itemNames} (~${totalKcal} kcal, ${totalPtn}g ptn)${motivationalMsg}`;
@@ -267,49 +267,49 @@ serve(async (req) => {
       
       let sleepMsg = "";
       if (hours >= 8) {
-        sleepMsg = " 🌟 Sono excelente! Continue assim!";
+        sleepMsg = " Sono excelente! Continue assim!";
       } else if (hours >= 7) {
-        sleepMsg = " 😴 Ótimo descanso!";
+        sleepMsg = " Ótimo descanso!";
       } else if (hours >= 6) {
-        sleepMsg = " 💤 Bom sono! Tente dormir um pouco mais amanhã.";
+        sleepMsg = " Bom sono! Tente dormir um pouco mais amanhã.";
       } else {
-        sleepMsg = " ⏰ Registrado! Lembre-se: 7-9h é o ideal.";
+        sleepMsg = " Registrado! Lembre-se: 7-9h é o ideal.";
       }
 
-      responseMsg = `🌙 Sono registrado: ${parsed.start} → ${parsed.end} (${parsed.quality})${sleepMsg}`;
+      responseMsg = `Sono registrado: ${parsed.start} → ${parsed.end} (${parsed.quality})${sleepMsg}`;
     } else if (parsed.type === "water") {
       // Hidratação
       const amountMl = parsed.amount_ml || 250;
       
-      // Insert water log
-      const progress = Math.round((newTotal / 2000) * 100);
-      
-      if (newTotal >= 2000) {
-        responseMsg = `💧 +${amountMl}ml registrado! 🎉 Parabéns! Meta de hidratação alcançada (${newTotal}ml)! Você está cuidando muito bem da sua saúde! 💪`;
-      } else if (remaining <= 500) {
-        responseMsg = `💧 +${amountMl}ml registrado! 🔥 Quase lá campeão(ã)! Faltam apenas ${remaining}ml (${100 - progress}%) para bater a meta!`;
-      } else if (progress >= 50) {
-        responseMsg = `💧 +${amountMl}ml (${glassesEquiv > 0 ? `~${glassesEquiv} copo${glassesEquiv > 1 ? 's' : ''}` : 'menos que 1 copo'}) registrado! 👍 Você já está em ${progress}% da meta! Continue assim!`;
-      } else {
-        responseMsg = `💧 +${amountMl}ml (${glassesEquiv > 0 ? `~${glassesEquiv} copo${glassesEquiv > 1 ? 's' : ''}` : 'menos que 1 copo'}) registrado! 💚 Ótimo começo! Total: ${newTotal}ml / 2000ml (${progress}%)
+      // Get current water
       const { data: day } = await supabase.from("days").select("water_ml").eq("date", date).eq("user_id", userId).single();
       const newTotal = (day?.water_ml || 0) + amountMl;
       
+      // Update water
       await supabase
         .from("days")
         .update({ water_ml: newTotal, water_target: 2000 })
         .eq("date", date)
-        .eq("user_id", userId);💚 Cuidando da sua saúde! Suas sugestões serão adaptadas para sua recuperação.`;
-    } else {
-      // Nota
-      const { data: day } = await supabase.from("days").select("notes").eq("date", date).eq("user_id", userId).single();
-      const existing = day?.notes || "";
-      const newNotes = (existing + "\n" + (parsed.text || text)).trim();
-      await supabase.from("days").update({ notes: newNotes }).eq("date", date).eq("user_id", userId);
+        .eq("user_id", userId);
 
-      responseMsg = `📝 Nota registrada com sucesso! ✍️ registrado! Quase lá - faltam apenas ${remaining}ml para a meta!`;
+      // Insert water log
+      await supabase
+        .from("water_logs")
+        .insert({ user_id: userId, date, amount_ml: amountMl });
+
+      // Calculate progress
+      const progress = Math.round((newTotal / 2000) * 100);
+      const remaining = Math.max(0, 2000 - newTotal);
+      const glassesEquiv = Math.round(amountMl / 250);
+      
+      if (newTotal >= 2000) {
+        responseMsg = `+${amountMl}ml registrado! Meta de hidratação alcançada (${newTotal}ml)!`;
+      } else if (remaining <= 500) {
+        responseMsg = `+${amountMl}ml registrado! Quase lá! Faltam apenas ${remaining}ml (${100 - progress}%) para a meta.`;
+      } else if (progress >= 50) {
+        responseMsg = `+${amountMl}ml registrado! Você já está em ${progress}% da meta. Continue assim!`;
       } else {
-        responseMsg = `💧 +${amountMl}ml (${glassesEquiv > 0 ? `~${glassesEquiv} copo${glassesEquiv > 1 ? 's' : ''}` : 'menos que 1 copo'}) registrado! Total: ${newTotal}ml / 2000ml`;
+        responseMsg = `+${amountMl}ml (${glassesEquiv > 0 ? `~${glassesEquiv} copo${glassesEquiv > 1 ? 's' : ''}` : 'menos que 1 copo'}) registrado! Total: ${newTotal}ml / 2000ml (${progress}%)`;
       }
     } else if (parsed.type === "health") {
       // Condição de saúde
@@ -319,8 +319,7 @@ serve(async (req) => {
       const newNotes = (existing + "\n" + healthTag).trim();
       await supabase.from("days").update({ notes: newNotes }).eq("date", date).eq("user_id", userId);
 
-      const severityEmoji = parsed.severity === "severo" ? "🚨" : parsed.severity === "moderado" ? "⚠️" : "🩹";
-      responseMsg = `${severityEmoji} Saúde registrada: ${parsed.condition}. Suas sugestões e insights serão adaptados!`;
+      responseMsg = `Saúde registrada: ${parsed.condition}. Suas sugestões serão adaptadas.`;
     } else {
       // Nota
       const { data: day } = await supabase.from("days").select("notes").eq("date", date).eq("user_id", userId).single();
