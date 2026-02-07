@@ -45,6 +45,16 @@
       error = 'Digite seu nome.';
       return;
     }
+    if (step === 3) {
+      if (goal_type === 'weight_loss' && target_weight_kg >= weight_kg) {
+        error = 'Para perder peso, o peso alvo deve ser menor que seu peso atual.';
+        return;
+      }
+      if (goal_type === 'weight_gain' && target_weight_kg <= weight_kg) {
+        error = 'Para ganhar peso, o peso alvo deve ser maior que seu peso atual.';
+        return;
+      }
+    }
     error = '';
     if (step < totalSteps) step++;
   }
@@ -220,11 +230,16 @@
           {/each}
         </div>
 
-        {#if goal_type === 'weight_loss' || goal_type === 'weight_gain'}
+        {#if goal_type === 'weight_loss' || goal_type === 'weight_gain' || goal_type === 'hypertrophy'}
           <div>
             <label for="target-weight" class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Peso Alvo (kg)</label>
             <input id="target-weight" type="number" bind:value={target_weight_kg} min="30" max="300" step="0.1"
               class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" />
+            {#if goal_type === 'weight_loss' && target_weight_kg >= weight_kg}
+              <p class="text-xs text-red-500 dark:text-red-400 mt-2">O peso alvo deve ser menor que seu peso atual ({weight_kg} kg).</p>
+            {:else if goal_type === 'weight_gain' && target_weight_kg <= weight_kg}
+              <p class="text-xs text-red-500 dark:text-red-400 mt-2">O peso alvo deve ser maior que seu peso atual ({weight_kg} kg).</p>
+            {/if}
           </div>
         {/if}
 

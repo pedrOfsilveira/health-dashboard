@@ -1,19 +1,31 @@
 <script>
-  import { profile, goals, streak, achievements, xp, navigate, auth } from './stores.svelte.js';
+  import { profile, goals, streak, achievements, xp, navigate, auth, calculateGoals } from './stores.svelte.js';
   import { upsertProfile } from './supabase.js';
   import BadgeGrid from './BadgeGrid.svelte';
 
   let editing = $state(false);
   let saving = $state(false);
-  let form = $state({});
+  let form = $state(/** @type {any} */ ({}));
 
   const activityLabels = {
     sedentary: 'Sedentário',
-    lightly_active: 'Levemente ativo',
-    moderately_active: 'Moderadamente ativo',
+    light: 'Leve',
+    lightly_active: 'Leve',
+    moderate: 'Moderado',
+    moderately_active: 'Moderado',
+    active: 'Ativo',
     very_active: 'Muito ativo',
     extra_active: 'Extremamente ativo',
   };
+
+  // Deduplicated options for the edit dropdown
+  const activityEditOptions = [
+    { value: 'sedentary', label: 'Sedentário' },
+    { value: 'light', label: 'Leve' },
+    { value: 'moderate', label: 'Moderado' },
+    { value: 'active', label: 'Ativo' },
+    { value: 'very_active', label: 'Muito ativo' },
+  ];
 
   const goalLabels = {
     health: '🌿 Saúde geral',
@@ -32,13 +44,35 @@
   }
 
   async function saveProfile() {
+    if (form.goal_type === 'weight_loss' && form.target_weight && form.target_weight >= form.weight) {
+      alert('Para perder peso, o peso alvo deve ser menor que seu peso atual.');
+      return;
+    }
+    if (form.goal_type === 'weight_gain' && form.target_weight && form.target_weight <= form.weight) {
+      alert('Para ganhar peso, o peso alvo deve ser maior que seu peso atual.');
+      return;
+    }
     saving = true;
     try {
-      await upsertProfile({
+      const calculated = calculateGoals(form);
+      const dataToSave = {
         ...form,
         user_id: auth.session.user.id,
-      });
+      };
+      if (calculated) {
+        dataToSave.goal_kcal = calculated.kcal;
+        dataToSave.goal_ptn = calculated.ptn;
+        dataToSave.goal_carb = calculated.carb;
+        dataToSave.goal_fat = calculated.fat;
+      }
+      await upsertProfile(dataToSave);
       profile.data = { ...form };
+      if (calculated) {
+        goals.kcal = calculated.kcal;
+        goals.ptn = calculated.ptn;
+        goals.carb = calculated.carb;
+        goals.fat = calculated.fat;
+      }
       editing = false;
     } catch (e) {
       alert('Erro ao salvar: ' + e.message);
@@ -160,8 +194,8 @@
         <div>
           <label for="pf-activity" class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nível de Atividade</label>
           <select id="pf-activity" bind:value={form.activity_level} class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100">
-            {#each Object.entries(activityLabels) as [key, label]}
-              <option value={key}>{label}</option>
+            {#each activityEditOptions as opt}
+              <option value={opt.value}>{opt.label}</option>
             {/each}
           </select>
         </div>
@@ -173,10 +207,15 @@
             {/each}
           </select>
         </div>
-        {#if form.goal_type === 'weight_loss' || form.goal_type === 'weight_gain'}
+        {#if form.goal_type === 'weight_loss' || form.goal_type === 'weight_gain' || form.goal_type === 'hypertrophy'}
           <div>
             <label for="pf-target" class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Peso Alvo (kg)</label>
             <input id="pf-target" type="number" bind:value={form.target_weight} step="0.1" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100" />
+            {#if form.goal_type === 'weight_loss' && form.target_weight >= form.weight}
+              <p class="text-xs text-red-500 dark:text-red-400 mt-1">O peso alvo deve ser menor que seu peso atual ({form.weight} kg).</p>
+            {:else if form.goal_type === 'weight_gain' && form.target_weight <= form.weight}
+              <p class="text-xs text-red-500 dark:text-red-400 mt-1">O peso alvo deve ser maior que seu peso atual ({form.weight} kg).</p>
+            {/if}
           </div>
         {/if}
         <div>
