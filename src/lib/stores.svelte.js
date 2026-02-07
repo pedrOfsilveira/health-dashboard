@@ -240,9 +240,34 @@ export function calculateGoals(profileData) {
 let _authInitialized = false;
 let _loadingAbort = null;
 let _safetyTimeoutId = null;
+let _authStateListenerActive = false;
 
 export function initAuth() {
   console.log('[Auth] Initializing auth...');
+  
+  // Immediately check if we can access session synchronously
+  // This handles cases where session exists but listener never fires
+  supabase.auth.getSession().then(({ data, error }) => {
+    if (error) {
+      console.error('[Auth] Error getting session:', error);
+      auth.loading = false;
+      router.page = 'login';
+      return;
+    }
+    console.log('[Auth] Initial session check:', data.session ? 'Session exists' : 'No session');
+    
+    // If no session, immediately show login - don't wait for listener
+    if (!data.session && !_authStateListenerActive) {
+      console.log('[Auth] No initial session, showing login immediately');
+      auth.session = null;
+      auth.loading = false;
+      router.page = 'login';
+    }
+  }).catch(err => {
+    console.error('[Auth] Fatal error checking session:', err);
+    auth.loading = false;
+    router.page = 'login';
+  });
   
   // Global safety: force exit loading state after 8s no matter what
   _safetyTimeoutId = setTimeout(() => {
@@ -254,39 +279,53 @@ export function initAuth() {
   }, 8000);
 
   // Single source of truth: onAuthStateChange handles ALL auth events
-  // including INITIAL_SESSION (which auto-detects OAuth codes in URL via PKCE)
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log('[Auth] State change:', event, session ? 'Session exists' : 'No session');
-    auth.session = session;
+  try {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      _authStateListenerActive = true;
+      console.log('[Auth] State change:', event, session ? 'Session exists' : 'No session');
+      auth.session = session;
 
-    // Clean OAuth params from URL after callback
-    if (event === 'SIGNED_IN') {
-      const url = new URL(window.location.href);
-      if (url.searchParams.has('code')) {
-        url.searchParams.delete('code');
-        window.history.replaceState({}, '', url.pathname);
-      }
-    }
-
-    if (session?.user) {
-      // Cancel any previous load in progress
-      if (_loadingAbort) {
-        _loadingAbort.abort();
-      }
-      _loadingAbort = new AbortController();
-      const currentAbort = _loadingAbort;
-
-      try {
-        await loadUserData(session.user.id);
-        // Only clear timeout on successful completion
-        if (_safetyTimeoutId) {
-          clearTimeout(_safetyTimeoutId);
-          _safetyTimeoutId = null;
+      // Clean OAuth params from URL after callback
+      if (event === 'SIGNED_IN') {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('code')) {
+          url.searchParams.delete('code');
+          window.history.replaceState({}, '', url.pathname);
         }
-      } catch (err) {
-        // If this load was aborted because a newer one started, silently ignore
-        if (currentAbort.signal.aborted) return;
-        console.error('[Auth] Error in auth flow:', err);
+      }
+
+      if (session?.user) {
+        // Cancel any previous load in progress
+        if (_loadingAbort) {
+          _loadingAbort.abort();
+        }
+        _loadingAbort = new AbortController();
+        const currentAbort = _loadingAbort;
+
+        try {
+          await loadUserData(session.user.id);
+          // Only clear timeout on successful completion
+          if (_safetyTimeoutId) {
+            clearTimeout(_safetyTimeoutId);
+            _safetyTimeoutId = null;
+          }
+        } catch (err) {
+          // If this load was aborted because a newer one started, silently ignore
+          if (currentAbort.signal.aborted) return;
+          console.error('[Auth] Error in auth flow:', err);
+          auth.loading = false;
+          router.page = 'login';
+          if (_safetyTimeoutId) {
+            clearTimeout(_safetyTimeoutId);
+            _safetyTimeoutId = null;
+          }
+        }
+      } else {
+        // No session — either INITIAL_SESSION with no user, or SIGNED_OUT
+        console.log('[Auth] No session - showing login');
+        _loadingAbort = null;
+        profile.data = null;
+        profile.needsSetup = false;
         auth.loading = false;
         router.page = 'login';
         if (_safetyTimeoutId) {
@@ -294,20 +333,14 @@ export function initAuth() {
           _safetyTimeoutId = null;
         }
       }
-    } else {
-      // No session — either INITIAL_SESSION with no user, or SIGNED_OUT
-      console.log('[Auth] No session - showing login');
-      _loadingAbort = null;
-      profile.data = null;
-      profile.needsSetup = false;
-      auth.loading = false;
-      router.page = 'login';
-      if (_safetyTimeoutId) {
-        clearTimeout(_safetyTimeoutId);
-        _safetyTimeoutId = null;
-      }
-    }
-  });
+    });
+    
+    console.log('[Auth] Auth state listener registered:', listener ? 'Success' : 'Failed');
+  } catch (err) {
+    console.error('[Auth] Failed to register auth state listener:', err);
+    auth.loading = false;
+    router.page = 'login';
+  }
 }
 
 async function loadUserData(userId) {

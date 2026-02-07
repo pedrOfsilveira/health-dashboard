@@ -12,7 +12,14 @@
 
   onMount(() => {
     console.log('[App] Component mounted, initializing auth');
-    initAuth();
+    
+    try {
+      initAuth();
+    } catch (err) {
+      console.error('[App] Error initializing auth:', err);
+      auth.loading = false;
+      router.page = 'login';
+    }
     
     // Ultimate failsafe: if still loading after 5s, force exit
     setTimeout(() => {

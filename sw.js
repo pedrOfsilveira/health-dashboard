@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bio-tracker-v4';
+const CACHE_NAME = 'bio-tracker-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -48,11 +48,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Network-first for API/Supabase calls
-  if (url.hostname.includes('supabase') || url.pathname.startsWith('/rest/') || url.pathname.startsWith('/functions/')) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
+  // CRITICAL: Never cache Supabase auth/API calls - always go to network
+  if (url.hostname.includes('supabase') || 
+      url.pathname.includes('/auth/') ||
+      url.pathname.startsWith('/rest/') || 
+      url.pathname.startsWith('/functions/')) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
