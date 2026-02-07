@@ -90,7 +90,7 @@ export function getXpForNextLevel(totalXp) {
 // ─── Router ─────────────────────────────────────────────────
 
 export const router = $state({
-  /** @type {'login' | 'register' | 'setup' | 'dashboard' | 'profile' | 'friends' | 'challenges'} */
+  /** @type {'login' | 'register' | 'setup' | 'dashboard' | 'profile' | 'friends' | 'challenges' | 'meal-planner'} */
   page: 'login',
 });
 

@@ -120,6 +120,12 @@
             >
               <span>⚡</span> Desafios
             </button>
+            <button
+              onclick={() => { menuOpen = false; navigate('meal-planner'); }}
+              class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
+            >
+              <span>🗓️</span> Plano Semanal
+            </button>
             <hr class="my-1 border-slate-100 dark:border-slate-700" />
             <button
               onclick={handleLogout}

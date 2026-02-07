@@ -1,8 +1,12 @@
 <script>
   import { callProcessEntry } from './supabase.js';
   import { profile, handleGamificationUpdate } from './stores.svelte.js';
+  import { offlineQueue, enqueueEntry, flushQueue, initOfflineQueue } from './offlineQueue.svelte.js';
 
   let { selectedDate = $bindable(), onEntryLogged = () => {} } = $props();
+
+  // Init offline queue on first mount
+  $effect(() => { initOfflineQueue(); });
 
   let open = $state(false);
   let input = $state('');
@@ -73,7 +77,13 @@
         messages[statusIdx] = { text: '❌ Erro: ' + (result.error || 'Falha'), side: 'bot', error: true };
       }
     } catch (e) {
-      messages[statusIdx] = { text: '❌ Erro de rede: ' + e.message, side: 'bot', error: true };
+      const isNetworkError = !navigator.onLine || e.message?.includes('fetch') || e.message?.includes('network') || e.message?.includes('Failed') || e.message?.includes('timeout');
+      if (isNetworkError) {
+        await enqueueEntry(text, chatDate);
+        messages[statusIdx] = { text: '📴 Sem conexão — registro salvo localmente. Será enviado quando voltar online.', side: 'bot', error: false };
+      } else {
+        messages[statusIdx] = { text: '❌ Erro de rede: ' + e.message, side: 'bot', error: true };
+      }
     } finally {
       sending = false;
     }
@@ -97,6 +107,11 @@
   onclick={toggle}
   class="fixed bottom-5 right-5 w-14 h-14 rounded-full bg-slate-900 dark:bg-slate-700 text-white flex items-center justify-center shadow-lg z-50 hover:bg-slate-800 dark:hover:bg-slate-600 active:scale-90 transition-all sm:bottom-8 sm:right-8"
 >
+  {#if offlineQueue.pendingCount > 0}
+    <span class="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-slate-800 animate-pulse">
+      {offlineQueue.pendingCount}
+    </span>
+  {/if}
   {#if open}
     <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
       <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -132,6 +147,20 @@
       <input id="chat-date" type="date" bind:value={chatDate}
         class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 w-full outline-none focus:ring-2 focus:ring-emerald-500" />
     </div>
+
+    <!-- Offline pending banner -->
+    {#if offlineQueue.pendingCount > 0}
+      <div class="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between gap-2">
+        <span class="text-[10px] font-bold text-amber-700 dark:text-amber-400">📴 {offlineQueue.pendingCount} registro(s) pendente(s)</span>
+        <button
+          onclick={async () => { const r = await flushQueue(); if (r.some(x => x.success)) onEntryLogged(); }}
+          disabled={offlineQueue.flushing || !navigator.onLine}
+          class="text-[10px] font-black text-amber-600 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 px-3 py-1 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-800/40 disabled:opacity-50 transition-colors"
+        >
+          {offlineQueue.flushing ? 'Enviando...' : 'Enviar agora'}
+        </button>
+      </div>
+    {/if}
 
     <!-- Messages -->
     <div class="flex-1 min-h-[200px] overflow-y-auto p-5 flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/30">

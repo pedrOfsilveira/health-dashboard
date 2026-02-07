@@ -21,6 +21,7 @@
     "@supabase/supabase-js": "^2.95.3",
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.5.1",
+    "idb-keyval": "^6.2.2",
     "supabase": "^2.75.5"
   }
 }

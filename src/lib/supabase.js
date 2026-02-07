@@ -207,6 +207,7 @@ export async function callProcessEntry(text, date) {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
+      'apikey': SUPABASE_ANON_KEY,
     },
     body: JSON.stringify({ text, date }),
   });
@@ -226,6 +227,48 @@ export async function callSuggestMeals(date, remaining, goals, mealHistory, heal
     body: JSON.stringify({ date, remaining, goals, mealHistory, healthConditions }),
   });
   return res.json();
+}
+
+export async function callGeneratePlan(weekStart, goals, preferences, healthConditions, mealHistory) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not authenticated');
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-plan`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+      'apikey': SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ weekStart, goals, preferences, healthConditions, mealHistory }),
+  });
+  return res.json();
+}
+
+export async function fetchMealPlan(userId, weekStart) {
+  const { data: plan, error: planErr } = await supabase
+    .from('meal_plans')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('week_start', weekStart)
+    .maybeSingle();
+  if (planErr) throw planErr;
+  if (!plan) return null;
+
+  const { data: entries, error: entErr } = await supabase
+    .from('meal_plan_entries')
+    .select('*')
+    .eq('plan_id', plan.id)
+    .order('day_of_week', { ascending: true })
+    .order('sort_order', { ascending: true });
+  if (entErr) throw entErr;
+
+  return { ...plan, entries: entries || [] };
+}
+
+export async function deleteMealPlanEntry(entryId) {
+  const { error } = await supabase.from('meal_plan_entries').delete().eq('id', entryId);
+  if (error) throw error;
 }
 
 // ─── Friend helpers ─────────────────────────────────────────

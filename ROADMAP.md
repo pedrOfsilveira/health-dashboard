@@ -87,13 +87,13 @@ Empty chat messages can be sent. Add a check before calling the Edge Function.
 - [x] Macro Pie Charts (conic-gradient com distribuição PTN/CHO/FAT, legenda interativa)
 - [x] Macro Overage Indicators (indicadores visuais vermelho quando metas são excedidas)
 - [x] Error Handling & Retry UI (Dashboard e QuickLog com fallback amigável e botão de retry)
+- [x] Offline Queue (idb-keyval: entradas offline são salvas localmente e sincronizadas quando a conexão volta, badge de pendentes no chat)
+- [x] Export Data (CSV + PDF com relatório completo de dias e refeições, na página de Perfil)
+- [x] Weekly Meal Planner (geração por IA, 7 dias × 4 refeições, lista de compras, navegação semanal, banco de dados com RLS)
 
 ---
 
 ## 🚀 Próximas Features Interessantes
-
-### 14. Weekly Meal Planner
-Planejar refeições da semana com IA. Gerar lista de compras automaticamente.
 
 ### 16. Meal Reminders
 Notificações inteligentes lembrando de registrar refeições baseado em horários habituais.

@@ -1,10 +1,12 @@
 <script>
   import { profile, goals, streak, achievements, xp, navigate, auth, calculateGoals } from './stores.svelte.js';
   import { upsertProfile } from './supabase.js';
+  import { exportCSV, exportPDF } from './exportData.js';
   import BadgeGrid from './BadgeGrid.svelte';
 
   let editing = $state(false);
   let saving = $state(false);
+  let exporting = $state(false);
   let form = $state(/** @type {any} */ ({}));
 
   const activityLabels = {
@@ -310,6 +312,31 @@
       <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
     </div>
     <BadgeGrid />
+  </div>
+
+  <!-- Export Data -->
+  <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6 transition-colors">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Exportar Dados</span>
+      <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+    </div>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Baixe seus registros de nutrição, sono e saúde.</p>
+    <div class="flex gap-3">
+      <button
+        onclick={async () => { exporting = true; try { await exportCSV(auth.session?.user?.id); } finally { exporting = false; } }}
+        disabled={exporting}
+        class="flex-1 py-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-2xl font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-200 dark:border-emerald-900/50 disabled:opacity-50"
+      >
+        📄 CSV
+      </button>
+      <button
+        onclick={async () => { exporting = true; try { await exportPDF(auth.session?.user?.id, { name: profile.data?.name, ...goals }); } finally { exporting = false; } }}
+        disabled={exporting}
+        class="flex-1 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-2xl font-bold text-sm hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors border border-blue-200 dark:border-blue-900/50 disabled:opacity-50"
+      >
+        📑 PDF
+      </button>
+    </div>
   </div>
 
   <!-- Danger Zone -->

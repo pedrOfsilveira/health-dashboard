@@ -10,6 +10,7 @@
   import Profile from './lib/Profile.svelte';
   import Friends from './lib/Friends.svelte';
   import Challenges from './lib/Challenges.svelte';
+  import MealPlanner from './lib/MealPlanner.svelte';
 
   onMount(() => {
     initTheme();
@@ -46,6 +47,8 @@
     <Friends />
   {:else if router.page === 'challenges'}
     <Challenges />
+  {:else if router.page === 'meal-planner'}
+    <MealPlanner />
   {:else if router.page === 'dashboard'}
     <Dashboard />
   {:else}
