@@ -178,6 +178,7 @@
             <select id="pf-sex" bind:value={form.sex} class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100">
               <option value="male">Masculino</option>
               <option value="female">Feminino</option>
+              <option value="other">Outro</option>
             </select>
           </div>
         </div>
@@ -238,7 +239,7 @@
           </div>
           <div>
             <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">Sexo</p>
-            <p class="text-sm font-black text-slate-800 dark:text-slate-100">{profile.data?.sex === 'male' ? 'Masculino' : 'Feminino'}</p>
+            <p class="text-sm font-black text-slate-800 dark:text-slate-100">{profile.data?.sex === 'male' ? 'Masculino' : profile.data?.sex === 'female' ? 'Feminino' : 'Outro'}</p>
           </div>
           <div>
             <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">Peso</p>

@@ -170,6 +170,11 @@
                   onclick={() => sex = 'female'}
                   class="flex-1 py-3 rounded-2xl font-bold text-sm transition-all {sex === 'female' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
                 >♀ F</button>
+                <button
+                  type="button"
+                  onclick={() => sex = 'other'}
+                  class="flex-1 py-3 rounded-2xl font-bold text-sm transition-all {sex === 'other' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
+                >Outro</button>
               </div>
             </div>
           </div>
@@ -301,7 +306,7 @@
         <div class="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200 dark:border-emerald-800">
           <p class="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-2">✅ Resumo do seu perfil</p>
           <div class="text-xs text-emerald-700 dark:text-emerald-400 space-y-1">
-            <p><strong>{name}</strong> • {age} anos • {sex === 'male' ? 'Masculino' : 'Feminino'}</p>
+            <p><strong>{name}</strong> • {age} anos • {sex === 'male' ? 'Masculino' : sex === 'female' ? 'Feminino' : 'Outro'}</p>
             <p>{weight_kg}kg • {height_cm}cm • {activityOptions.find(a => a.value === activity_level)?.label}</p>
             <p>Objetivo: <strong>{goalOptions.find(g => g.value === goal_type)?.label}</strong></p>
             <p>Meta: {previewGoals.kcal} kcal | {previewGoals.ptn}g P | {previewGoals.carb}g C | {previewGoals.fat}g F</p>

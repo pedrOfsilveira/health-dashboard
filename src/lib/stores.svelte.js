@@ -179,8 +179,11 @@ export function calculateGoals(profileData) {
   let bmr;
   if (sex === 'male') {
     bmr = 10 * w + 6.25 * h - 5 * a + 5;
-  } else {
+  } else if (sex === 'female') {
     bmr = 10 * w + 6.25 * h - 5 * a - 161;
+  } else {
+    // Average for other/non-binary: (5 - 161) / 2 = -78
+    bmr = 10 * w + 6.25 * h - 5 * a - 78;
   }
 
   // 2. Activity multiplier
