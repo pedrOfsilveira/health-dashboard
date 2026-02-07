@@ -11,26 +11,18 @@
   import Challenges from './lib/Challenges.svelte';
 
   onMount(() => {
-    console.log('[App] Component mounted, initializing auth');
+    initAuth();
     
-    try {
-      initAuth();
-    } catch (err) {
-      console.error('[App] Error initializing auth:', err);
-      auth.loading = false;
-      router.page = 'login';
-    }
-    
-    // Ultimate failsafe: if still loading after 5s, force exit
+    // Ultimate failsafe: if still loading after 10s, force exit
     setTimeout(() => {
       if (auth.loading) {
-        console.error('[App] FAILSAFE: Still loading after 5s, forcing exit');
+        console.warn('[App] Loading timeout - forcing exit');
         auth.loading = false;
         if (!auth.session) {
           router.page = 'login';
         }
       }
-    }, 5000);
+    }, 10000);
   });
 </script>
 

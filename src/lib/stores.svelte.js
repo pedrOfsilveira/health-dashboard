@@ -237,125 +237,116 @@ export function calculateGoals(profileData) {
 
 // ─── Init Auth Listener ─────────────────────────────────────
 
-let _authInitialized = false;
-let _loadingAbort = null;
+/**
+ * Key insight: On page refresh, Supabase fires events in this order:
+ *   1. SIGNED_IN  — fired during token recovery, client NOT fully ready
+ *   2. INITIAL_SESSION — fired after client is fully initialized
+ *
+ * Fetching data on SIGNED_IN hangs because the REST client isn't ready yet.
+ * We MUST wait for INITIAL_SESSION on the initial page load.
+ * After that, SIGNED_IN from explicit logins should be handled normally.
+ */
+let _initialSessionReceived = false;
 let _safetyTimeoutId = null;
-let _authStateListenerActive = false;
 
 export function initAuth() {
-  console.log('[Auth] Initializing auth...');
-  
-  // Immediately check if we can access session synchronously
-  // This handles cases where session exists but listener never fires
-  supabase.auth.getSession().then(({ data, error }) => {
-    if (error) {
-      console.error('[Auth] Error getting session:', error);
-      auth.loading = false;
-      router.page = 'login';
-      return;
-    }
-    console.log('[Auth] Initial session check:', data.session ? 'Session exists' : 'No session');
-    
-    // If no session, immediately show login - don't wait for listener
-    if (!data.session && !_authStateListenerActive) {
-      console.log('[Auth] No initial session, showing login immediately');
-      auth.session = null;
-      auth.loading = false;
-      router.page = 'login';
-    }
-  }).catch(err => {
-    console.error('[Auth] Fatal error checking session:', err);
-    auth.loading = false;
-    router.page = 'login';
-  });
-  
-  // Global safety: force exit loading state after 8s no matter what
+  // Safety timeout: force exit loading after 8s no matter what
   _safetyTimeoutId = setTimeout(() => {
-    console.warn('[Auth] Safety timeout triggered - forcing exit from loading state');
-    auth.loading = false;
-    if (!auth.session) {
-      router.page = 'login';
+    if (auth.loading) {
+      console.warn('[Auth] Safety timeout reached');
+      auth.loading = false;
+      if (!auth.session) router.page = 'login';
     }
   }, 8000);
 
-  // Single source of truth: onAuthStateChange handles ALL auth events
-  try {
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      _authStateListenerActive = true;
-      console.log('[Auth] State change:', event, session ? 'Session exists' : 'No session');
-      auth.session = session;
+  const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+    auth.session = session;
 
-      // Clean OAuth params from URL after callback
-      if (event === 'SIGNED_IN') {
-        const url = new URL(window.location.href);
-        if (url.searchParams.has('code')) {
-          url.searchParams.delete('code');
-          window.history.replaceState({}, '', url.pathname);
-        }
-      }
+    // ── INITIAL_SESSION: the definitive event for page load ──
+    if (event === 'INITIAL_SESSION') {
+      _initialSessionReceived = true;
+      clearSafetyTimeout();
 
       if (session?.user) {
-        // Cancel any previous load in progress
-        if (_loadingAbort) {
-          _loadingAbort.abort();
-        }
-        _loadingAbort = new AbortController();
-        const currentAbort = _loadingAbort;
-
-        try {
-          await loadUserData(session.user.id);
-          // Only clear timeout on successful completion
-          if (_safetyTimeoutId) {
-            clearTimeout(_safetyTimeoutId);
-            _safetyTimeoutId = null;
-          }
-        } catch (err) {
-          // If this load was aborted because a newer one started, silently ignore
-          if (currentAbort.signal.aborted) return;
-          console.error('[Auth] Error in auth flow:', err);
-          auth.loading = false;
-          router.page = 'login';
-          if (_safetyTimeoutId) {
-            clearTimeout(_safetyTimeoutId);
-            _safetyTimeoutId = null;
-          }
-        }
+        await loadUserDataSafe(session.user.id);
       } else {
-        // No session — either INITIAL_SESSION with no user, or SIGNED_OUT
-        console.log('[Auth] No session - showing login');
-        _loadingAbort = null;
-        profile.data = null;
-        profile.needsSetup = false;
-        auth.loading = false;
-        router.page = 'login';
-        if (_safetyTimeoutId) {
-          clearTimeout(_safetyTimeoutId);
-          _safetyTimeoutId = null;
-        }
+        resetToLogin();
       }
-    });
-    
-    console.log('[Auth] Auth state listener registered:', listener ? 'Success' : 'Failed');
+      return;
+    }
+
+    // ── SIGNED_IN before INITIAL_SESSION: skip (token recovery, not ready) ──
+    if (event === 'SIGNED_IN' && !_initialSessionReceived) {
+      // Clean OAuth params if present
+      cleanOAuthParams();
+      return; // Do NOT load data — wait for INITIAL_SESSION
+    }
+
+    // ── SIGNED_IN after INITIAL_SESSION: real login (user clicked sign in) ──
+    if (event === 'SIGNED_IN' && _initialSessionReceived) {
+      cleanOAuthParams();
+      if (session?.user) {
+        auth.loading = true;
+        await loadUserDataSafe(session.user.id);
+      }
+      return;
+    }
+
+    // ── TOKEN_REFRESHED: update session silently ──
+    if (event === 'TOKEN_REFRESHED') {
+      return; // session already updated above, nothing else to do
+    }
+
+    // ── SIGNED_OUT ──
+    if (event === 'SIGNED_OUT') {
+      resetToLogin();
+      return;
+    }
+  });
+}
+
+function clearSafetyTimeout() {
+  if (_safetyTimeoutId) {
+    clearTimeout(_safetyTimeoutId);
+    _safetyTimeoutId = null;
+  }
+}
+
+function cleanOAuthParams() {
+  const url = new URL(window.location.href);
+  if (url.searchParams.has('code')) {
+    url.searchParams.delete('code');
+    window.history.replaceState({}, '', url.pathname);
+  }
+}
+
+function resetToLogin() {
+  profile.data = null;
+  profile.needsSetup = false;
+  auth.loading = false;
+  router.page = 'login';
+  clearSafetyTimeout();
+}
+
+async function loadUserDataSafe(userId) {
+  try {
+    await loadUserData(userId);
   } catch (err) {
-    console.error('[Auth] Failed to register auth state listener:', err);
+    console.error('[Auth] Error loading user data:', err);
     auth.loading = false;
-    router.page = 'login';
+    router.page = 'dashboard'; // show dashboard even on partial failure
   }
 }
 
 async function loadUserData(userId) {
-  console.log('[Auth] Loading user data for:', userId);
   profile.loading = true;
   auth.loading = true;
 
   try {
-    console.log('[Auth] Fetching profile...');
     const p = await fetchProfile(userId);
-    console.log('[Auth] Profile fetched:', p ? 'Success' : 'No profile');
     profile.data = p;
 
     if (!p || !p.goal_type) {
-      console.log('[Auth] Profile needs setup');
       profile.needsSetup = true;
       router.page = 'setup';
     } else {
@@ -368,8 +359,7 @@ async function loadUserData(userId) {
         goals.fat = calculated.fat;
       }
 
-      console.log('[Auth] Loading gamification data...');
-      // Load gamification data in parallel for faster load
+      // Load gamification data in parallel
       const [s, a] = await Promise.all([
         fetchStreak(userId).catch(() => null),
         fetchAchievements(userId).catch(() => []),
@@ -382,7 +372,6 @@ async function loadUserData(userId) {
       }
       achievements.unlocked = a || [];
 
-      // Calculate XP from profile
       if (p.xp_total) {
         xp.total = p.xp_total;
         const lvl = computeLevel(p.xp_total);
@@ -393,14 +382,12 @@ async function loadUserData(userId) {
       // Load social data (non-blocking)
       loadSocialData(userId).catch(() => {});
 
-      console.log('[Auth] User data loaded successfully');
       router.page = 'dashboard';
     }
   } catch (err) {
     console.error('[Auth] Error loading user data:', err);
-    router.page = 'dashboard'; // still show dashboard even if profile load fails
+    router.page = 'dashboard';
   } finally {
-    console.log('[Auth] Setting loading to false');
     profile.loading = false;
     auth.loading = false;
   }

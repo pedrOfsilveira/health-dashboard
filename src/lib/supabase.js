@@ -7,6 +7,28 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 export { SUPABASE_URL };
 
+// Timeout utility to prevent hanging queries
+function withTimeout(promise, timeoutMs = 12000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error(`Query timeout after ${timeoutMs}ms`)), timeoutMs)
+    )
+  ]);
+}
+
+// Retry helper for critical queries
+async function withRetry(fn, retries = 2, delay = 1000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 // ─── Auth helpers ───────────────────────────────────────────
 
 export async function signUp(email, password) {
@@ -53,13 +75,18 @@ export async function getSession() {
 // ─── Profile helpers ────────────────────────────────────────
 
 export async function fetchProfile(userId) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-  if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
-  return data;
+  return withRetry(async () => {
+    const { data, error } = await withTimeout(
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      12000
+    );
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  }, 1); // Only 1 retry to avoid too long waits
 }
 
 export async function upsertProfile(profile) {
@@ -75,11 +102,14 @@ export async function upsertProfile(profile) {
 // ─── Streak helpers ─────────────────────────────────────────
 
 export async function fetchStreak(userId) {
-  const { data, error } = await supabase
-    .from('streaks')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
+  const { data, error } = await withTimeout(
+    supabase
+      .from('streaks')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle(),
+    12000
+  );
   if (error && error.code !== 'PGRST116') throw error;
   return data;
 }
@@ -87,11 +117,14 @@ export async function fetchStreak(userId) {
 // ─── Achievement helpers ────────────────────────────────────
 
 export async function fetchAchievements(userId) {
-  const { data, error } = await supabase
-    .from('user_achievements')
-    .select('*, badge_definitions(*)')
-    .eq('user_id', userId)
-    .order('unlocked_at', { ascending: false });
+  const { data, error } = await withTimeout(
+    supabase
+      .from('user_achievements')
+      .select('*, badge_definitions(*)')
+      .eq('user_id', userId)
+      .order('unlocked_at', { ascending: false }),
+    12000
+  );
   if (error) throw error;
   return data || [];
 }
@@ -379,12 +412,12 @@ export async function fetchLeaderboard(userId) {
     .from('profiles')
     .select('user_id, name, xp_total')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
   const { data: ownStreak } = await supabase
     .from('streaks')
     .select('current_streak')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   const leaderboard = [
     ...(ownProfile ? [{
