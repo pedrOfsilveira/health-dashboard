@@ -239,22 +239,24 @@ export function calculateGoals(profileData) {
 
 let _authInitialized = false;
 let _loadingAbort = null;
+let _safetyTimeoutId = null;
 
 export function initAuth() {
-  // Safety timeout: if auth takes more than 10s, stop loading and show login
-  const safetyTimeout = setTimeout(() => {
-    if (auth.loading) {
-      console.warn('Auth loading timeout — forcing login screen');
-      auth.loading = false;
-      auth.session = null;
+  console.log('[Auth] Initializing auth...');
+  
+  // Global safety: force exit loading state after 8s no matter what
+  _safetyTimeoutId = setTimeout(() => {
+    console.warn('[Auth] Safety timeout triggered - forcing exit from loading state');
+    auth.loading = false;
+    if (!auth.session) {
       router.page = 'login';
     }
-  }, 10000);
+  }, 8000);
 
   // Single source of truth: onAuthStateChange handles ALL auth events
   // including INITIAL_SESSION (which auto-detects OAuth codes in URL via PKCE)
   supabase.auth.onAuthStateChange(async (event, session) => {
-    clearTimeout(safetyTimeout);
+    console.log('[Auth] State change:', event, session ? 'Session exists' : 'No session');
     auth.session = session;
 
     // Clean OAuth params from URL after callback
@@ -276,33 +278,51 @@ export function initAuth() {
 
       try {
         await loadUserData(session.user.id);
+        // Only clear timeout on successful completion
+        if (_safetyTimeoutId) {
+          clearTimeout(_safetyTimeoutId);
+          _safetyTimeoutId = null;
+        }
       } catch (err) {
         // If this load was aborted because a newer one started, silently ignore
         if (currentAbort.signal.aborted) return;
-        console.error('Error in auth flow:', err);
+        console.error('[Auth] Error in auth flow:', err);
         auth.loading = false;
         router.page = 'login';
+        if (_safetyTimeoutId) {
+          clearTimeout(_safetyTimeoutId);
+          _safetyTimeoutId = null;
+        }
       }
     } else {
       // No session — either INITIAL_SESSION with no user, or SIGNED_OUT
+      console.log('[Auth] No session - showing login');
       _loadingAbort = null;
       profile.data = null;
       profile.needsSetup = false;
       auth.loading = false;
       router.page = 'login';
+      if (_safetyTimeoutId) {
+        clearTimeout(_safetyTimeoutId);
+        _safetyTimeoutId = null;
+      }
     }
   });
 }
 
 async function loadUserData(userId) {
+  console.log('[Auth] Loading user data for:', userId);
   profile.loading = true;
   auth.loading = true;
 
   try {
+    console.log('[Auth] Fetching profile...');
     const p = await fetchProfile(userId);
+    console.log('[Auth] Profile fetched:', p ? 'Success' : 'No profile');
     profile.data = p;
 
     if (!p || !p.goal_type) {
+      console.log('[Auth] Profile needs setup');
       profile.needsSetup = true;
       router.page = 'setup';
     } else {
@@ -315,6 +335,7 @@ async function loadUserData(userId) {
         goals.fat = calculated.fat;
       }
 
+      console.log('[Auth] Loading gamification data...');
       // Load gamification data in parallel for faster load
       const [s, a] = await Promise.all([
         fetchStreak(userId).catch(() => null),
@@ -339,12 +360,14 @@ async function loadUserData(userId) {
       // Load social data (non-blocking)
       loadSocialData(userId).catch(() => {});
 
+      console.log('[Auth] User data loaded successfully');
       router.page = 'dashboard';
     }
   } catch (err) {
-    console.error('Error loading user data:', err);
+    console.error('[Auth] Error loading user data:', err);
     router.page = 'dashboard'; // still show dashboard even if profile load fails
   } finally {
+    console.log('[Auth] Setting loading to false');
     profile.loading = false;
     auth.loading = false;
   }
