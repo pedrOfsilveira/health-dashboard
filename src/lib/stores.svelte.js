@@ -238,18 +238,25 @@ export function calculateGoals(profileData) {
 // ─── Init Auth Listener ─────────────────────────────────────
 
 let _loadingUserId = null;
-let _initialized = false;
 
 export function initAuth() {
-  // 1. Register the listener FIRST (captures INITIAL_SESSION + future events)
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-    // Update session immediately (sync)
+  // 1. Register the auth state listener for runtime events (login, logout, token refresh)
+  supabase.auth.onAuthStateChange(async (event, session) => {
     auth.session = session;
 
-    // On INITIAL_SESSION, we handle it below via getSession to avoid double-load
+    // Skip INITIAL_SESSION — we use getSession() below for the initial load
     if (event === 'INITIAL_SESSION') return;
 
-    // For all other events (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, etc.)
+    if (event === 'SIGNED_OUT') {
+      _loadingUserId = null;
+      profile.data = null;
+      profile.needsSetup = false;
+      auth.loading = false;
+      router.page = 'login';
+      return;
+    }
+
+    // SIGNED_IN, TOKEN_REFRESHED, etc.
     if (session?.user) {
       if (_loadingUserId === session.user.id) return;
       _loadingUserId = session.user.id;
@@ -258,24 +265,36 @@ export function initAuth() {
       } finally {
         _loadingUserId = null;
       }
-    } else {
-      _loadingUserId = null;
-      profile.data = null;
-      profile.needsSetup = false;
-      auth.loading = false;
-      router.page = 'login';
     }
   });
 
-  // 2. Explicitly check session — this is the primary init path
+  // 2. Check for OAuth code in URL (GitHub, Google, etc.)
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+
+  if (code) {
+    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      if (error) {
+        console.error('OAuth code exchange error:', error);
+        auth.loading = false;
+        router.page = 'login';
+      }
+      // Clean the URL
+      window.history.replaceState({}, '', window.location.pathname);
+      // onAuthStateChange SIGNED_IN will handle loading user data
+    }).catch((err) => {
+      console.error('OAuth exchange error:', err);
+      auth.loading = false;
+      router.page = 'login';
+    });
+    return;
+  }
+
+  // 3. Primary init path — check existing session on page load/refresh
   supabase.auth.getSession().then(async ({ data: { session } }) => {
     auth.session = session;
 
     if (session?.user) {
-      if (_loadingUserId === session.user.id) {
-        // Already being loaded by onAuthStateChange, skip
-        return;
-      }
       _loadingUserId = session.user.id;
       try {
         await loadUserData(session.user.id);
