@@ -1,5 +1,5 @@
 <script>
-  import { signUp } from './supabase.js';
+  import { signUp, signIn } from './supabase.js';
   import { navigate } from './stores.svelte.js';
 
   let email = $state('');
@@ -30,10 +30,13 @@
     loading = true;
     try {
       const data = await signUp(email, password);
-      if (data.user && !data.session) {
-        success = 'Conta criada! Verifique seu email para confirmar.';
+      if (data.user && data.session) {
+        // Auto-confirmed — auth listener will navigate to setup
+        success = 'Conta criada! Redirecionando...';
+      } else if (data.user) {
+        // Fallback: auto-login if signup didn't return session
+        await signIn(email, password);
       }
-      // If auto-confirmed, auth listener will handle navigation
     } catch (err) {
       if (err.message.includes('already registered')) {
         error = 'Este email já está cadastrado.';

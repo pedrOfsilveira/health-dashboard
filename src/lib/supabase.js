@@ -10,7 +10,14 @@ export { SUPABASE_URL };
 // ─── Auth helpers ───────────────────────────────────────────
 
 export async function signUp(email, password) {
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      // Skip email confirmation — user is auto-confirmed
+      emailRedirectTo: undefined,
+    },
+  });
   if (error) throw error;
   return data;
 }

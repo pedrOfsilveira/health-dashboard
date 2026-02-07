@@ -237,28 +237,38 @@ export function calculateGoals(profileData) {
 
 // ─── Init Auth Listener ─────────────────────────────────────
 
+let _loadingUserId = null;
+
 export function initAuth() {
-  // Listen for auth state changes
+  // Listen for ALL auth state changes (login, logout, token refresh)
   supabase.auth.onAuthStateChange(async (event, session) => {
     auth.session = session;
-    auth.loading = false;
 
     if (session?.user) {
-      await loadUserData(session.user.id);
+      // Guard against concurrent loads for the same user
+      if (_loadingUserId === session.user.id) return;
+      _loadingUserId = session.user.id;
+      try {
+        await loadUserData(session.user.id);
+      } finally {
+        _loadingUserId = null;
+      }
     } else {
+      _loadingUserId = null;
       profile.data = null;
       profile.needsSetup = false;
+      auth.loading = false;
       router.page = 'login';
     }
   });
 
-  // Check initial session
+  // Initial session check — only to dismiss the loading spinner
+  // onAuthStateChange will fire right after and handle the actual routing
   supabase.auth.getSession().then(({ data: { session } }) => {
-    auth.session = session;
-    auth.loading = false;
-    if (session?.user) {
-      loadUserData(session.user.id);
+    if (!session) {
+      auth.loading = false;
     }
+    // If session exists, onAuthStateChange will handle it
   });
 }
 
@@ -311,5 +321,6 @@ async function loadUserData(userId) {
     router.page = 'dashboard'; // still show dashboard even if profile load fails
   } finally {
     profile.loading = false;
+    auth.loading = false;
   }
 }
