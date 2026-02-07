@@ -138,7 +138,7 @@
   });
 </script>
 
-<div class="max-w-lg mx-auto px-4 pb-32">
+<div class="max-w-lg mx-auto px-4 pb-32 w-full overflow-hidden">
   <Header />
 
   <!-- Back + Title -->
@@ -157,8 +157,8 @@
     <button onclick={prevWeek} aria-label="Semana anterior" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
     </button>
-    <div class="text-center">
-      <p class="text-xs font-black text-slate-900 dark:text-slate-100">Semana de {new Date(weekStart + 'T00:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</p>
+    <div class="text-center min-w-0 flex-1">
+      <p class="text-xs font-black text-slate-900 dark:text-slate-100 truncate">Semana de {new Date(weekStart + 'T00:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</p>
       <p class="text-[9px] text-slate-400 font-medium">{weekStart}</p>
     </div>
     <button onclick={nextWeek} aria-label="Próxima semana" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
@@ -197,11 +197,11 @@
     </div>
   {:else}
     <!-- Day tabs -->
-    <div class="flex gap-1.5 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+    <div class="grid grid-cols-7 gap-1 mb-4">
       {#each DAY_NAMES as name, i}
         <button
           onclick={() => selectedDay = i}
-          class="flex-shrink-0 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all {selectedDay === i ? 'bg-emerald-500 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'}"
+          class="py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center {selectedDay === i ? 'bg-emerald-500 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'}"
         >
           {name.substring(0, 3)}
         </button>
@@ -229,15 +229,15 @@
     </div>
 
     <!-- Meals list -->
-    <div class="space-y-3 mb-6">
+    <div class="space-y-3 mb-6 min-h-[200px]">
       {#each dayEntries as entry (entry.id)}
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm transition-colors">
-          <div class="flex items-start justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">{MEAL_ICONS[entry.meal_type] || '🍽️'}</span>
-              <div>
+          <div class="flex items-start justify-between gap-2 mb-2">
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+              <span class="text-lg flex-shrink-0">{MEAL_ICONS[entry.meal_type] || '🍽️'}</span>
+              <div class="min-w-0">
                 <p class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{MEAL_LABELS[entry.meal_type] || entry.meal_type}</p>
-                <p class="text-sm font-black text-slate-900 dark:text-slate-100">{entry.title}</p>
+                <p class="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{entry.title}</p>
               </div>
             </div>
             <button onclick={() => removeEntry(entry.id)} class="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors" title="Remover">
@@ -246,7 +246,7 @@
           </div>
 
           {#if entry.description}
-            <p class="text-xs text-slate-500 dark:text-slate-400 mb-2 italic">{entry.description}</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-2 italic break-words">{entry.description}</p>
           {/if}
 
           <!-- Macro chips -->
@@ -263,7 +263,7 @@
               <p class="text-[8px] font-black text-slate-400 uppercase tracking-wider mb-1">Ingredientes</p>
               <div class="flex flex-wrap gap-1">
                 {#each entry.ingredients as ing}
-                  <span class="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-0.5 rounded-md">
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-0.5 rounded-md max-w-full truncate">
                     {ing.qty}{ing.unit ? ' ' + ing.unit : ''} {ing.name}
                   </span>
                 {/each}
@@ -317,8 +317,8 @@
             {#each shoppingList as item}
               <div class="flex items-center gap-2 py-1">
                 <div class="w-4 h-4 rounded border-2 border-slate-300 dark:border-slate-600 flex-shrink-0"></div>
-                <span class="text-sm text-slate-700 dark:text-slate-300 flex-1">{item.name}</span>
-                <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">{item.qty} {item.unit}</span>
+                <span class="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0 truncate">{item.name}</span>
+                <span class="text-xs text-slate-400 dark:text-slate-500 font-medium flex-shrink-0">{item.qty} {item.unit}</span>
               </div>
             {/each}
           </div>
