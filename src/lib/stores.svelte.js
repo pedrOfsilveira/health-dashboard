@@ -238,14 +238,19 @@ export function calculateGoals(profileData) {
 // ─── Init Auth Listener ─────────────────────────────────────
 
 let _loadingUserId = null;
+let _initialized = false;
 
 export function initAuth() {
-  // Listen for ALL auth state changes (login, logout, token refresh)
-  supabase.auth.onAuthStateChange(async (event, session) => {
+  // 1. Register the listener FIRST (captures INITIAL_SESSION + future events)
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Update session immediately (sync)
     auth.session = session;
 
+    // On INITIAL_SESSION, we handle it below via getSession to avoid double-load
+    if (event === 'INITIAL_SESSION') return;
+
+    // For all other events (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, etc.)
     if (session?.user) {
-      // Guard against concurrent loads for the same user
       if (_loadingUserId === session.user.id) return;
       _loadingUserId = session.user.id;
       try {
@@ -262,13 +267,29 @@ export function initAuth() {
     }
   });
 
-  // Initial session check — only to dismiss the loading spinner
-  // onAuthStateChange will fire right after and handle the actual routing
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (!session) {
+  // 2. Explicitly check session — this is the primary init path
+  supabase.auth.getSession().then(async ({ data: { session } }) => {
+    auth.session = session;
+
+    if (session?.user) {
+      if (_loadingUserId === session.user.id) {
+        // Already being loaded by onAuthStateChange, skip
+        return;
+      }
+      _loadingUserId = session.user.id;
+      try {
+        await loadUserData(session.user.id);
+      } finally {
+        _loadingUserId = null;
+      }
+    } else {
       auth.loading = false;
+      router.page = 'login';
     }
-    // If session exists, onAuthStateChange will handle it
+  }).catch((err) => {
+    console.error('getSession error:', err);
+    auth.loading = false;
+    router.page = 'login';
   });
 }
 

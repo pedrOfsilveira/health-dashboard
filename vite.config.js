@@ -8,4 +8,13 @@ export default defineConfig({
     svelte(),
     tailwindcss(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          chartjs: ['chart.js'],
+        },
+      },
+    },
+  },
 })

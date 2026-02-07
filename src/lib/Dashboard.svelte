@@ -7,6 +7,7 @@
   import AchievementToast from './AchievementToast.svelte';
   import ConfettiCelebration from './ConfettiCelebration.svelte';
   import Leaderboard from './Leaderboard.svelte';
+  import WeeklyChart from './WeeklyChart.svelte';
 
   let allData = $state({});
   let selectedDate = $state(null);
@@ -370,6 +371,17 @@
           </div>
         </div>
       </div>
+
+      <!-- Weekly Progress Chart -->
+      {#if Object.keys(allData).length > 1}
+        <div class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 mb-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Progresso Semanal</span>
+            <div class="flex-1 h-px bg-slate-200"></div>
+          </div>
+          <WeeklyChart data={allData} />
+        </div>
+      {/if}
 
       <!-- Meals Section -->
       <div class="flex items-center gap-3 mb-4">

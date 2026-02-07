@@ -77,3 +77,5 @@ Empty chat messages can be sent. Add a check before calling the Edge Function.
 - [x] Challenge System (solo & duo challenges, 12 pre-seeded challenges, progress tracking, XP rewards)
 - [x] Friend Leaderboard (XP-ranked friend comparison on dashboard)
 - [x] Gamification Engine in Edge Function (auto streak, badge, XP, challenge progress on every log)
+- [x] Weekly Progress Chart (Chart.js calories/protein bar+line chart for last 7 days)
+- [x] GitHub OAuth Login (sign in with GitHub on login and register pages)
