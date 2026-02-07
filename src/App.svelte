@@ -28,7 +28,7 @@
   });
 </script>
 
-<main class="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-100 selection:bg-emerald-100 dark:selection:bg-emerald-900 transition-colors">
+<main class="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-100 selection:bg-emerald-100 dark:selection:bg-emerald-900 transition-colors flex flex-col">
   {#if auth.loading}
     <div class="flex h-screen items-center justify-center flex-col gap-4">
       <div class="h-10 w-10 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent"></div>
@@ -55,7 +55,6 @@
 
 <style>
   :global(body) {
-    background-color: #f8fafc;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
 </style>
