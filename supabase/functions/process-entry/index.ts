@@ -74,12 +74,18 @@ const corsHeaders = {
 };
 
 async function callAI(userText: string) {
+  const AZURE_KEY = Deno.env.get("AZURE_API_KEY") || Deno.env.get("AZURE_OPENAI_KEY");
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (AZURE_KEY) {
+    headers["api-key"] = AZURE_KEY;
+  } else if (GITHUB_TOKEN) {
+    // Backwards-compat: some deployments put the key in GITHUB_TOKEN
+    headers["Authorization"] = `Bearer ${GITHUB_TOKEN}`;
+  }
+
   const res = await fetch(AI_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({
       model: AI_MODEL,
       messages: [
@@ -131,11 +137,17 @@ serve(async (req) => {
     let userId: string | null = null;
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
-      const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-      });
-      const { data: { user } } = await userClient.auth.getUser(token);
-      userId = user?.id ?? null;
+      const adminClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+      try {
+        const { data: { user }, error } = await adminClient.auth.getUser(token as string);
+        if (error) {
+          console.error("auth.getUser error:", error);
+        }
+        userId = user?.id ?? null;
+      } catch (e) {
+        console.error("auth.getUser threw:", e);
+        userId = null;
+      }
     }
 
     if (!userId) {
