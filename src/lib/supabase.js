@@ -716,11 +716,22 @@ export async function subscribeToPushNotifications() {
       return { ok: false, reason: 'permission_dismissed' };
     }
 
-    // Wait for SW with a timeout — if SW never registered, this would hang forever
+    // Ensure service worker is registered
+    if (!navigator.serviceWorker.controller) {
+      // SW may not be registered yet — try registering it now
+      try {
+        await navigator.serviceWorker.register('/sw.js');
+      } catch (swErr) {
+        console.error('Failed to register Service Worker:', swErr);
+        return { ok: false, reason: 'sw_register_failed' };
+      }
+    }
+
+    // Wait for SW to be ready with a timeout
     const registration = await Promise.race([
       navigator.serviceWorker.ready,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Service Worker not available. Are you on HTTPS?')), 8000)
+        setTimeout(() => reject(new Error('Service Worker timeout')), 10000)
       ),
     ]);
     let subscription = await registration.pushManager.getSubscription();

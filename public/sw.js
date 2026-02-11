@@ -1,12 +1,12 @@
-const CACHE_NAME = 'bio-tracker-v5';
+const CACHE_NAME = 'bio-tracker-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/public/icon-192.png',
-  '/public/icon-512.png',
-  '/public/icon-maskable-512.png',
-  '/public/apple-touch-icon.png'
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
+  '/apple-touch-icon.png'
 ];
 
 // CDN assets to precache for offline
@@ -113,8 +113,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Health Dashboard';
   const options = {
     body: data.body,
-    icon: data.icon || '/public/icon-192.png',
-    badge: data.badge || '/public/icon-192.png',
+    icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/icon-192.png',
     data: data.data || {}, // Custom data to be used on notificationclick
   };
 

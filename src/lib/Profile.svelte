@@ -105,8 +105,9 @@
             no_vapid: 'Erro de configuração do servidor. Tente novamente mais tarde.',
             keys_missing: 'Erro ao gerar chaves de notificação. Tente novamente.',
             backend_error: 'Erro ao salvar no servidor. Tente novamente mais tarde.',
-            unsupported: 'Seu navegador não suporta notificações push, ou você não está num site HTTPS.',
-            error: 'Erro ao ativar notificações. Verifique se está acessando via HTTPS e tente novamente.',
+            unsupported: 'Seu navegador não suporta notificações push.',
+            sw_register_failed: 'Erro ao registrar o Service Worker. Recarregue a página e tente novamente.',
+            error: 'Erro ao ativar notificações. Recarregue a página e tente novamente.',
           };
           alert(messages[result.reason] || 'Não foi possível ativar as notificações push. Tente novamente.');
           notifSaving = false;
