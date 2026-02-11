@@ -12,7 +12,7 @@
   import PullToRefresh from './PullToRefresh.svelte';
 
   let allData = $state({});
-  let selectedDate = $state(null);
+  let selectedDate = $state(new Date().toISOString().split('T')[0]);
   let loading = $state(true);
   let loadError = $state(null);
 
@@ -203,9 +203,9 @@
       }
 
       allData = dataByDate;
-      const dates = Object.keys(allData).sort().reverse();
-      if (dates.length > 0 && !selectedDate) {
-        selectedDate = dates[0];
+      const today = new Date().toISOString().split('T')[0];
+      if (!selectedDate) {
+        selectedDate = today;
       }
     } catch (err) {
       console.error('Error loading data:', err);
