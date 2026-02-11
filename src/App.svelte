@@ -18,8 +18,8 @@
     initTheme();
     initAuth();
     
-    // Register service worker
-    if ('serviceWorker' in navigator) {
+    // Register service worker (requires secure context: HTTPS or localhost)
+    if ('serviceWorker' in navigator && window.isSecureContext) {
       navigator.serviceWorker.register('/sw.js')
         .then((reg) => console.log('Service Worker Registered!', reg))
         .catch((err) => console.error('Service Worker registration failed:', err));

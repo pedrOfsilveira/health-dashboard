@@ -659,7 +659,10 @@ function urlBase64ToUint8Array(base64String) {
  * Check if the browser supports push notifications.
  */
 export function pushNotificationsSupported() {
-  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  return 'serviceWorker' in navigator
+    && 'PushManager' in window
+    && 'Notification' in window
+    && window.isSecureContext;
 }
 
 /**
@@ -713,7 +716,13 @@ export async function subscribeToPushNotifications() {
       return { ok: false, reason: 'permission_dismissed' };
     }
 
-    const registration = await navigator.serviceWorker.ready;
+    // Wait for SW with a timeout — if SW never registered, this would hang forever
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Service Worker not available. Are you on HTTPS?')), 8000)
+      ),
+    ]);
     let subscription = await registration.pushManager.getSubscription();
 
     if (!subscription) {
