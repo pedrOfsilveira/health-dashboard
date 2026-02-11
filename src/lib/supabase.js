@@ -689,7 +689,7 @@ export async function subscribeToPushNotifications() {
     return { ok: false, reason: 'unsupported' };
   }
 
-  const VAPID_PUBLIC_KEY = import.meta.env.VITE_APP_VAPID_PUBLIC_KEY;
+  const VAPID_PUBLIC_KEY = 'BHfylvG4IalVIjzQXLDQ1Bk8Bx6AT31xQpjlTm5Yl1zjG_5vTCPuKinQKXWmRkrwNFeTRmlsUdgedJghha3AqII';
   if (!VAPID_PUBLIC_KEY) {
     console.error('VAPID Public Key is not set. Cannot subscribe to push notifications.');
     return { ok: false, reason: 'no_vapid' };
