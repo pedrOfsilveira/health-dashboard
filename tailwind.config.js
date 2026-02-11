@@ -6,7 +6,11 @@ export default {
   ],
   darkMode: 'selector', // ou 'class' para versões antigas
   theme: {
-    extend: {},
+    extend: {
+      screens: {
+        'xs': '375px',
+      },
+    },
   },
   plugins: [],
 }

@@ -113,14 +113,14 @@
   }
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50 dark:from-slate-900 dark:to-emerald-950 flex items-center justify-center p-4">
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50 dark:from-slate-900 dark:to-emerald-950 flex items-center justify-center p-3 sm:p-4">
   <div class="w-full max-w-lg">
     <!-- Header -->
-    <div class="text-center mb-6">
-      <h1 class="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Vamos Configurar! 🚀</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Passo {step} de {totalSteps}</p>
+    <div class="text-center mb-4 sm:mb-6">
+      <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Vamos Configurar! 🚀</h1>
+      <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">Passo {step} de {totalSteps}</p>
       <!-- Progress bar -->
-      <div class="mt-4 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden max-w-xs mx-auto">
+      <div class="mt-3 sm:mt-4 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden max-w-xs mx-auto">
         <div
           class="h-full bg-emerald-500 rounded-full transition-all duration-500"
           style="width: {(step / totalSteps) * 100}%"
@@ -128,16 +128,16 @@
       </div>
     </div>
 
-    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 p-8">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 p-5 sm:p-8">
       {#if error}
-        <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-2xl text-sm font-medium mb-4">
+        <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm font-medium mb-4">
           {error}
         </div>
       {/if}
 
       <!-- Step 1: Basic Info -->
       {#if step === 1}
-        <h2 class="text-lg font-black text-slate-900 dark:text-slate-100 mb-6">👤 Sobre Você</h2>
+        <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 mb-4 sm:mb-6">👤 Sobre Você</h2>
 
         <div class="space-y-4">
           <div>
@@ -151,31 +151,42 @@
             />
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label for="age" class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Idade</label>
-              <input id="age" type="number" bind:value={age} min="14" max="100"
-                class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" />
-            </div>
-            <div>
-              <span class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Sexo</span>
-              <div class="flex gap-2" role="group" aria-label="Sexo">
-                <button
-                  type="button"
-                  onclick={() => sex = 'male'}
-                  class="flex-1 h-11 px-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5 leading-none {sex === 'male' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
-                ><span>♂</span><span>Masculino</span></button>
-                <button
-                  type="button"
-                  onclick={() => sex = 'female'}
-                  class="flex-1 h-11 px-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5 leading-none {sex === 'female' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
-                ><span>♀</span><span>Feminino</span></button>
-                <button
-                  type="button"
-                  onclick={() => sex = 'other'}
-                  class="flex-1 h-11 px-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5 leading-none {sex === 'other' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
-                ><span>⚧</span><span>Outro</span></button>
-              </div>
+          <div>
+            <label for="age" class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Idade</label>
+            <input id="age" type="number" bind:value={age} min="14" max="100"
+              class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" />
+          </div>
+
+          <div>
+            <span class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Sexo</span>
+            <div class="flex gap-2" role="group" aria-label="Sexo">
+              <button
+                type="button"
+                onclick={() => sex = 'male'}
+                class="flex-1 h-11 px-2 rounded-2xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1 leading-none {sex === 'male' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
+              >
+                <span class="text-base">♂</span>
+                <span class="hidden xs:inline">Masculino</span>
+                <span class="xs:hidden">M</span>
+              </button>
+              <button
+                type="button"
+                onclick={() => sex = 'female'}
+                class="flex-1 h-11 px-2 rounded-2xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1 leading-none {sex === 'female' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
+              >
+                <span class="text-base">♀</span>
+                <span class="hidden xs:inline">Feminino</span>
+                <span class="xs:hidden">F</span>
+              </button>
+              <button
+                type="button"
+                onclick={() => sex = 'other'}
+                class="flex-1 h-11 px-2 rounded-2xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1 leading-none {sex === 'other' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
+              >
+                <span class="text-base">⚧</span>
+                <span class="hidden xs:inline">Outro</span>
+                <span class="xs:hidden">O</span>
+              </button>
             </div>
           </div>
 
@@ -195,14 +206,14 @@
 
       <!-- Step 2: Activity Level -->
       {:else if step === 2}
-        <h2 class="text-lg font-black text-slate-900 dark:text-slate-100 mb-6">🏃 Nível de Atividade</h2>
+        <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 mb-4 sm:mb-6">🏃 Nível de Atividade</h2>
 
-        <div class="space-y-3">
+        <div class="space-y-2 sm:space-y-3">
           {#each activityOptions as opt (opt.value)}
             <button
               type="button"
               onclick={() => activity_level = opt.value}
-              class="w-full p-4 rounded-2xl text-left transition-all flex items-center gap-4 {activity_level === opt.value ? 'bg-emerald-50 dark:bg-emerald-900/30 border-2 border-emerald-500 shadow-sm' : 'bg-slate-50 dark:bg-slate-900 border-2 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}"
+              class="w-full p-3 sm:p-4 rounded-2xl text-left transition-all flex items-center gap-3 sm:gap-4 {activity_level === opt.value ? 'bg-emerald-50 dark:bg-emerald-900/30 border-2 border-emerald-500 shadow-sm' : 'bg-slate-50 dark:bg-slate-900 border-2 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}"
             >
               <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 {activity_level === opt.value ? 'border-emerald-500' : 'border-slate-300 dark:border-slate-600'}">
                 {#if activity_level === opt.value}
@@ -219,18 +230,18 @@
 
       <!-- Step 3: Goal -->
       {:else if step === 3}
-        <h2 class="text-lg font-black text-slate-900 dark:text-slate-100 mb-6">🎯 Seu Objetivo</h2>
+        <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 mb-4 sm:mb-6">🎯 Seu Objetivo</h2>
 
-        <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="grid grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-6">
           {#each goalOptions as opt (opt.value)}
             <button
               type="button"
               onclick={() => goal_type = opt.value}
-              class="p-4 rounded-2xl text-center transition-all {goal_type === opt.value ? 'bg-emerald-50 dark:bg-emerald-900/30 border-2 border-emerald-500 shadow-sm' : 'bg-slate-50 dark:bg-slate-900 border-2 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}"
+              class="p-3 sm:p-4 rounded-2xl text-center transition-all {goal_type === opt.value ? 'bg-emerald-50 dark:bg-emerald-900/30 border-2 border-emerald-500 shadow-sm' : 'bg-slate-50 dark:bg-slate-900 border-2 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}"
             >
-              <span class="text-2xl block mb-2">{opt.emoji}</span>
-              <p class="font-bold text-sm text-slate-900 dark:text-slate-100">{opt.label}</p>
-              <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">{opt.desc}</p>
+              <span class="text-xl sm:text-2xl block mb-1 sm:mb-2">{opt.emoji}</span>
+              <p class="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">{opt.label}</p>
+              <p class="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1">{opt.desc}</p>
             </button>
           {/each}
         </div>
@@ -249,23 +260,23 @@
         {/if}
 
         <!-- Preview calculated goals -->
-        <div class="mt-6 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700">
-          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Suas Metas Calculadas</p>
+        <div class="mt-4 sm:mt-6 p-3 sm:p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 sm:mb-3">Suas Metas Calculadas</p>
           <div class="grid grid-cols-4 gap-2 text-center">
             <div>
-              <p class="text-lg font-black text-slate-900 dark:text-slate-100">{previewGoals.kcal}</p>
+              <p class="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100">{previewGoals.kcal}</p>
               <p class="text-[9px] font-bold text-slate-400 uppercase">kcal</p>
             </div>
             <div>
-              <p class="text-lg font-black text-emerald-600 dark:text-emerald-400">{previewGoals.ptn}g</p>
+              <p class="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400">{previewGoals.ptn}g</p>
               <p class="text-[9px] font-bold text-slate-400 uppercase">ptn</p>
             </div>
             <div>
-              <p class="text-lg font-black text-amber-600 dark:text-amber-400">{previewGoals.carb}g</p>
+              <p class="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400">{previewGoals.carb}g</p>
               <p class="text-[9px] font-bold text-slate-400 uppercase">carb</p>
             </div>
             <div>
-              <p class="text-lg font-black text-red-500 dark:text-red-400">{previewGoals.fat}g</p>
+              <p class="text-base sm:text-lg font-black text-red-500 dark:text-red-400">{previewGoals.fat}g</p>
               <p class="text-[9px] font-bold text-slate-400 uppercase">fat</p>
             </div>
           </div>
@@ -273,8 +284,8 @@
 
       <!-- Step 4: Health Conditions -->
       {:else if step === 4}
-        <h2 class="text-lg font-black text-slate-900 dark:text-slate-100 mb-2">🏥 Condições de Saúde</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Informe qualquer condição para personalizar suas recomendações. Opcional — pode pular.</p>
+        <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 mb-2">🏥 Condições de Saúde</h2>
+        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-4 sm:mb-6">Informe qualquer condição para personalizar suas recomendações. Opcional — pode pular.</p>
 
         <div>
           <label for="conditions" class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
@@ -289,7 +300,7 @@
           ></textarea>
         </div>
 
-        <div class="mt-4 flex flex-wrap gap-2">
+        <div class="mt-3 sm:mt-4 flex flex-wrap gap-2">
           {#each ['Diabetes', 'Hipertensão', 'Colesterol alto', 'Lactose', 'Glúten', 'Gastrite'] as tag (tag)}
             <button
               type="button"
@@ -297,15 +308,15 @@
                 if (health_conditions) health_conditions += ', ';
                 health_conditions += tag;
               }}
-              class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+              class="px-2.5 sm:px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
             >+ {tag}</button>
           {/each}
         </div>
 
         <!-- Final summary -->
-        <div class="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200 dark:border-emerald-800">
-          <p class="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-2">✅ Resumo do seu perfil</p>
-          <div class="text-xs text-emerald-700 dark:text-emerald-400 space-y-1">
+        <div class="mt-4 sm:mt-6 p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200 dark:border-emerald-800">
+          <p class="text-xs sm:text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-2">✅ Resumo do seu perfil</p>
+          <div class="text-[11px] sm:text-xs text-emerald-700 dark:text-emerald-400 space-y-1">
             <p><strong>{name}</strong> • {age} anos • {sex === 'male' ? 'Masculino' : sex === 'female' ? 'Feminino' : 'Outro'}</p>
             <p>{weight_kg}kg • {height_cm}cm • {activityOptions.find(a => a.value === activity_level)?.label}</p>
             <p>Objetivo: <strong>{goalOptions.find(g => g.value === goal_type)?.label}</strong></p>
@@ -315,12 +326,12 @@
       {/if}
 
       <!-- Navigation buttons -->
-      <div class="flex gap-3 mt-8">
+      <div class="flex gap-2 sm:gap-3 mt-6 sm:mt-8">
         {#if step > 1}
           <button
             type="button"
             onclick={prevStep}
-            class="flex-1 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
+            class="flex-1 py-2.5 sm:py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
           >
             ← Voltar
           </button>
@@ -330,7 +341,7 @@
           <button
             type="button"
             onclick={nextStep}
-            class="flex-1 py-3 bg-slate-900 dark:bg-emerald-600 text-white rounded-2xl font-black text-sm hover:bg-slate-800 dark:hover:bg-emerald-700 active:scale-[0.98] transition-all"
+            class="flex-1 py-2.5 sm:py-3 bg-slate-900 dark:bg-emerald-600 text-white rounded-2xl font-black text-sm hover:bg-slate-800 dark:hover:bg-emerald-700 active:scale-[0.98] transition-all"
           >
             Próximo →
           </button>
@@ -339,7 +350,7 @@
             type="button"
             onclick={handleSave}
             disabled={saving}
-            class="flex-1 py-3 bg-emerald-600 text-white rounded-2xl font-black text-sm hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-60"
+            class="flex-1 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-2xl font-black text-sm hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-60"
           >
             {#if saving}
               Salvando...
