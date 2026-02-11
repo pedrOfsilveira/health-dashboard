@@ -656,28 +656,61 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 /**
+ * Check if the browser supports push notifications.
+ */
+export function pushNotificationsSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+/**
+ * Request notification permission from the browser.
+ * MUST be called from a direct user gesture (click/tap) for the browser
+ * to show the permission popup. Returns the permission state:
+ * 'granted', 'denied', or 'default'.
+ */
+export async function requestNotificationPermission() {
+  if (!('Notification' in window)) return 'denied';
+  if (Notification.permission === 'granted') return 'granted';
+  if (Notification.permission === 'denied') return 'denied';
+  return await Notification.requestPermission();
+}
+
+/**
  * Subscribe the current browser to push notifications and save the
  * subscription on the backend. Safe to call multiple times — it will
  * reuse an existing browser subscription and upsert on the server.
- * Returns true if the subscription was saved successfully.
+ * Returns an object { ok, reason } where reason can be:
+ * 'unsupported', 'no_vapid', 'permission_denied', 'permission_dismissed',
+ * 'keys_missing', 'backend_error', 'error', or 'ok'.
  */
 export async function subscribeToPushNotifications() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+  if (!pushNotificationsSupported()) {
     console.warn('Push notifications not supported by this browser.');
-    return false;
+    return { ok: false, reason: 'unsupported' };
   }
 
   const VAPID_PUBLIC_KEY = import.meta.env.VITE_APP_VAPID_PUBLIC_KEY;
   if (!VAPID_PUBLIC_KEY) {
     console.error('VAPID Public Key is not set. Cannot subscribe to push notifications.');
-    return false;
+    return { ok: false, reason: 'no_vapid' };
   }
 
   try {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
+    // Check current permission state — don't request here, it should
+    // already have been requested via requestNotificationPermission()
+    // from a user gesture before calling this function.
+    let permission = Notification.permission;
+    if (permission === 'default') {
+      // Fallback: try to request (may work if still within user gesture context)
+      permission = await Notification.requestPermission();
+    }
+    if (permission === 'denied') {
       console.warn('Notification permission denied.');
-      return false;
+      return { ok: false, reason: 'permission_denied' };
+    }
+    if (permission !== 'granted') {
+      console.warn('Notification permission dismissed.');
+      return { ok: false, reason: 'permission_dismissed' };
     }
 
     const registration = await navigator.serviceWorker.ready;
@@ -704,7 +737,7 @@ export async function subscribeToPushNotifications() {
 
     if (!payload.keys.p256dh || !payload.keys.auth) {
       console.warn('Push subscription keys missing, skipping save.');
-      return false;
+      return { ok: false, reason: 'keys_missing' };
     }
 
     const { data, error } = await supabase.functions.invoke('push-subscriptions', {
@@ -713,13 +746,13 @@ export async function subscribeToPushNotifications() {
 
     if (error) {
       console.error('Failed to save push subscription:', error);
-      return false;
+      return { ok: false, reason: 'backend_error' };
     }
 
     console.log('Push subscription saved on backend:', data);
-    return true;
+    return { ok: true, reason: 'ok' };
   } catch (error) {
     console.error('Error subscribing to push notifications:', error);
-    return false;
+    return { ok: false, reason: 'error' };
   }
 }

@@ -11,7 +11,7 @@
   import Friends from './lib/Friends.svelte';
   import Challenges from './lib/Challenges.svelte';
   import MealPlanner from './lib/MealPlanner.svelte';
-  import { supabase, subscribeToPushNotifications } from './lib/supabase.js';
+  import { supabase } from './lib/supabase.js';
 
 
   onMount(() => {
@@ -25,13 +25,7 @@
         .catch((err) => console.error('Service Worker registration failed:', err));
     }
 
-    // Call subscribeToPushNotifications when user is authenticated
-    $effect(() => {
-      if (auth.session) {
-        // Delay slightly to give SW time to activate and avoid immediate prompt
-        setTimeout(subscribeToPushNotifications, 3000); 
-      }
-    });
+
 
     // Ultimate failsafe: if still loading after 10s, force exit
     setTimeout(() => {

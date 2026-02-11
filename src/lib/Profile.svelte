@@ -1,6 +1,6 @@
 <script>
   import { profile, goals, streak, achievements, xp, navigate, auth, calculateGoals } from './stores.svelte.js';
-  import { upsertProfile, fetchNotificationPreferences, upsertNotificationPreferences, subscribeToPushNotifications } from './supabase.js';
+  import { upsertProfile, fetchNotificationPreferences, upsertNotificationPreferences, subscribeToPushNotifications, requestNotificationPermission, pushNotificationsSupported } from './supabase.js';
   import { exportCSV, exportPDF } from './exportData.js';
   import BadgeGrid from './BadgeGrid.svelte';
   import { onMount } from 'svelte';
@@ -58,15 +58,55 @@
     }
   });
 
+  /** Request notification permission when the user enables any toggle (user gesture context) */
+  async function handleNotifToggle(field) {
+    notif[field] = !notif[field];
+
+    if (notif[field] && pushNotificationsSupported()) {
+      const permission = await requestNotificationPermission();
+      if (permission === 'denied') {
+        notif[field] = false;
+        alert('As notificações estão bloqueadas no seu navegador. Para ativá-las, clique no ícone de cadeado 🔒 na barra de endereço e permita notificações para este site.');
+      }
+    }
+  }
+
   async function saveNotifPrefs() {
     notifSaving = true;
     try {
-      // If any notification is enabled, ensure push subscription is active
       const anyEnabled = notif.water_enabled || notif.creatine_enabled || notif.meal_enabled;
+
       if (anyEnabled) {
-        const subscribed = await subscribeToPushNotifications();
-        if (!subscribed) {
-          alert('Não foi possível ativar as notificações push. Verifique se você permitiu notificações no navegador e tente novamente.');
+        if (!pushNotificationsSupported()) {
+          alert('Seu navegador não suporta notificações push.');
+          notifSaving = false;
+          return;
+        }
+
+        // Ensure permission is granted (should already be from toggle, but double-check)
+        const permission = await requestNotificationPermission();
+        if (permission === 'denied') {
+          alert('As notificações estão bloqueadas no seu navegador. Para ativá-las, clique no ícone de cadeado 🔒 na barra de endereço e permita notificações para este site.');
+          notifSaving = false;
+          return;
+        }
+        if (permission !== 'granted') {
+          alert('Você precisa permitir notificações para ativar os lembretes.');
+          notifSaving = false;
+          return;
+        }
+
+        // Now subscribe (permission already granted, so this won't trigger a popup)
+        const result = await subscribeToPushNotifications();
+        if (!result.ok) {
+          const messages = {
+            permission_denied: 'As notificações estão bloqueadas. Clique no ícone de cadeado 🔒 na barra de endereço e permita notificações.',
+            permission_dismissed: 'Você precisa permitir notificações para ativar os lembretes. Tente novamente.',
+            no_vapid: 'Erro de configuração do servidor. Tente novamente mais tarde.',
+            keys_missing: 'Erro ao gerar chaves de notificação. Tente novamente.',
+            backend_error: 'Erro ao salvar no servidor. Tente novamente mais tarde.',
+          };
+          alert(messages[result.reason] || 'Não foi possível ativar as notificações push. Tente novamente.');
           notifSaving = false;
           return;
         }
@@ -408,7 +448,7 @@
               role="switch"
               aria-label="Ativar lembrete de água"
               aria-checked={notif.water_enabled}
-              onclick={() => notif.water_enabled = !notif.water_enabled}
+              onclick={() => handleNotifToggle('water_enabled')}
               class="relative w-11 h-6 rounded-full transition-colors {notif.water_enabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}"
             >
               <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform {notif.water_enabled ? 'translate-x-5' : ''}"></span>
@@ -456,7 +496,7 @@
               role="switch"
               aria-label="Ativar lembrete de creatina"
               aria-checked={notif.creatine_enabled}
-              onclick={() => notif.creatine_enabled = !notif.creatine_enabled}
+              onclick={() => handleNotifToggle('creatine_enabled')}
               class="relative w-11 h-6 rounded-full transition-colors {notif.creatine_enabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}"
             >
               <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform {notif.creatine_enabled ? 'translate-x-5' : ''}"></span>
@@ -487,7 +527,7 @@
               role="switch"
               aria-label="Ativar lembretes de refeição"
               aria-checked={notif.meal_enabled}
-              onclick={() => notif.meal_enabled = !notif.meal_enabled}
+              onclick={() => handleNotifToggle('meal_enabled')}
               class="relative w-11 h-6 rounded-full transition-colors {notif.meal_enabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}"
             >
               <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform {notif.meal_enabled ? 'translate-x-5' : ''}"></span>
