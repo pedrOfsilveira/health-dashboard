@@ -1,6 +1,6 @@
 <script>
   import { profile, goals, streak, achievements, xp, navigate, auth, calculateGoals } from './stores.svelte.js';
-  import { upsertProfile, fetchNotificationPreferences, upsertNotificationPreferences } from './supabase.js';
+  import { upsertProfile, fetchNotificationPreferences, upsertNotificationPreferences, subscribeToPushNotifications } from './supabase.js';
   import { exportCSV, exportPDF } from './exportData.js';
   import BadgeGrid from './BadgeGrid.svelte';
   import { onMount } from 'svelte';
@@ -61,6 +61,17 @@
   async function saveNotifPrefs() {
     notifSaving = true;
     try {
+      // If any notification is enabled, ensure push subscription is active
+      const anyEnabled = notif.water_enabled || notif.creatine_enabled || notif.meal_enabled;
+      if (anyEnabled) {
+        const subscribed = await subscribeToPushNotifications();
+        if (!subscribed) {
+          alert('Não foi possível ativar as notificações push. Verifique se você permitiu notificações no navegador e tente novamente.');
+          notifSaving = false;
+          return;
+        }
+      }
+
       await upsertNotificationPreferences({
         user_id: auth.session.user.id,
         ...notif,
