@@ -157,7 +157,7 @@
       <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Suas refeições favoritas</span>
     </div>
 
-    <div class="grid grid-cols-2 gap-2">
+    <div class="grid grid-cols-2 gap-2 items-start">
       {#each frequentMeals as meal}
         <button
           onclick={() => quickLog(meal)}

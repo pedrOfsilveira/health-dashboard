@@ -351,17 +351,17 @@
   </div>
 
   <!-- Stats Cards -->
-  <div class="grid grid-cols-3 gap-3 mb-6 justify-items-center">
-    <div class="w-full max-w-[130px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center transition-colors">
-      <p class="text-2xl font-black text-slate-900 dark:text-slate-100">🔥 {streak.current}</p>
+  <div class="grid grid-cols-3 gap-3 mb-6">
+    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-center transition-colors flex flex-col items-center justify-center">
+      <p class="text-lg font-black text-slate-900 dark:text-slate-100 whitespace-nowrap">🔥 {streak.current}</p>
       <p class="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1">Streak</p>
     </div>
-    <div class="w-full max-w-[130px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center transition-colors">
-      <p class="text-2xl font-black text-slate-900 dark:text-slate-100">🏆 {achievements.unlocked.length}</p>
+    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-center transition-colors flex flex-col items-center justify-center">
+      <p class="text-lg font-black text-slate-900 dark:text-slate-100 whitespace-nowrap">🏆 {achievements.unlocked.length}</p>
       <p class="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1">Badges</p>
     </div>
-    <div class="w-full max-w-[130px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center transition-colors">
-      <p class="text-2xl font-black text-slate-900 dark:text-slate-100">⚡ {xp.total}</p>
+    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-center transition-colors flex flex-col items-center justify-center">
+      <p class="text-lg font-black text-slate-900 dark:text-slate-100 whitespace-nowrap">⚡ {xp.total}</p>
       <p class="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1">XP Total</p>
     </div>
   </div>
