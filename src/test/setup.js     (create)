@@ -1,0 +1,9 @@
+import { expect } from 'vitest';
+
+beforeAll(() => {
+  // Setup code here
+});
+
+afterAll(() => {
+  // Teardown code here
+});
