@@ -14,6 +14,37 @@
   let selectedDay = $state(0);
   let showShopping = $state(false);
   let weekStart = $state(getMonday(new Date()));
+  let generateProgress = $state('');
+  let checkedItems = $state({});
+
+  // Load checked items from localStorage
+  function loadCheckedItems() {
+    try {
+      const stored = localStorage.getItem(`shopping-checked-${weekStart}`);
+      checkedItems = stored ? JSON.parse(stored) : {};
+    } catch { checkedItems = {}; }
+  }
+
+  function toggleItem(category, itemName) {
+    const key = `${category}::${itemName}`;
+    checkedItems = { ...checkedItems, [key]: !checkedItems[key] };
+    try {
+      localStorage.setItem(`shopping-checked-${weekStart}`, JSON.stringify(checkedItems));
+    } catch { /* ignore */ }
+  }
+
+  function isItemChecked(category, itemName) {
+    return !!checkedItems[`${category}::${itemName}`];
+  }
+
+  function checkedCount() {
+    return Object.values(checkedItems).filter(Boolean).length;
+  }
+
+  function totalItems() {
+    if (!plan?.shoppingList) return 0;
+    return Object.values(plan.shoppingList).reduce((sum, items) => sum + (Array.isArray(items) ? items.length : 0), 0);
+  }
 
   function getMonday(d) {
     const date = new Date(d);
@@ -50,28 +81,7 @@
     return { kcal, ptn: Math.round(ptn), carb: Math.round(carb), fat: Math.round(fat) };
   });
 
-  let shoppingList = $derived.by(() => {
-    if (!plan?.entries) return [];
-    const map = {};
-    for (const entry of plan.entries) {
-      if (entry.ingredients && Array.isArray(entry.ingredients)) {
-        for (const ing of entry.ingredients) {
-          const key = (ing.name || '').toLowerCase().trim();
-          if (!key) continue;
-          if (!map[key]) map[key] = { name: ing.name, qty: ing.qty || '', unit: ing.unit || '' };
-          else {
-            // Try to accumulate quantities
-            const existing = parseFloat(map[key].qty) || 0;
-            const add = parseFloat(ing.qty) || 0;
-            if (existing && add && map[key].unit === ing.unit) {
-              map[key].qty = String(existing + add);
-            }
-          }
-        }
-      }
-    }
-    return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
-  });
+
 
   async function loadPlan() {
     loading = true;
@@ -90,6 +100,7 @@
   async function generate() {
     generating = true;
     error = '';
+    generateProgress = 'Preparando dados...';
     try {
       const userId = auth.session?.user?.id;
       if (!userId) return;
@@ -97,9 +108,11 @@
       // Get meal history for AI context
       let mealHistory = [];
       try {
+        generateProgress = 'Carregando histórico alimentar...';
         mealHistory = await fetchMealsWithItems(userId);
       } catch { /* ignore */ }
 
+      generateProgress = 'Gerando plano com IA (isso pode levar até 2 minutos)...';
       const result = await callGeneratePlan(
         weekStart,
         { kcal: goals.kcal, ptn: goals.ptn, carb: goals.carb, fat: goals.fat },
@@ -109,6 +122,7 @@
       );
 
       if (result.success) {
+        generateProgress = 'Carregando plano...';
         await loadPlan();
       } else {
         error = result.error || 'Erro ao gerar plano';
@@ -117,6 +131,7 @@
       error = 'Falha na geração: ' + e.message;
     } finally {
       generating = false;
+      generateProgress = '';
     }
   }
 
@@ -135,6 +150,7 @@
   $effect(() => {
     weekStart; // track
     loadPlan();
+    loadCheckedItems();
   });
 </script>
 
@@ -186,11 +202,14 @@
       >
         {#if generating}
           <div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-          Gerando plano...
+          {generateProgress || 'Gerando plano...'}
         {:else}
           ✨ Gerar Plano Semanal
         {/if}
       </button>
+      {#if generating && generateProgress}
+        <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-3 text-center animate-pulse">{generateProgress}</p>
+      {/if}
       {#if error}
         <p class="text-xs text-red-500 dark:text-red-400 mt-3">{error}</p>
       {/if}
@@ -286,6 +305,9 @@
         class="flex-1 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-bold text-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
       >
         🛒 {showShopping ? 'Esconder' : 'Lista de Compras'}
+        {#if totalItems() > 0}
+          <span class="text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full">{checkedCount()}/{totalItems()}</span>
+        {/if}
       </button>
       <button
         onclick={generate}
@@ -311,17 +333,44 @@
         <div class="flex items-center gap-3 mb-4">
           <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Lista de Compras</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          {#if totalItems() > 0}
+            <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{checkedCount()}/{totalItems()} ✓</span>
+          {/if}
         </div>
-        {#if shoppingList.length > 0}
-          <div class="space-y-1.5">
-            {#each shoppingList as item}
-              <div class="flex items-center gap-2 py-1">
-                <div class="w-4 h-4 rounded border-2 border-slate-300 dark:border-slate-600 flex-shrink-0"></div>
-                <span class="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0 truncate">{item.name}</span>
-                <span class="text-xs text-slate-400 dark:text-slate-500 font-medium flex-shrink-0">{item.qty} {item.unit}</span>
+        {#if plan?.shoppingList && Object.keys(plan.shoppingList).length > 0}
+          {#each Object.entries(plan.shoppingList) as [category, items]}
+            {#if Array.isArray(items) && items.length > 0}
+              <h4 class="text-xs font-black text-slate-500 dark:text-slate-300 uppercase tracking-wider mt-4 mb-2 flex items-center gap-2">
+                {#if category.includes('Carne') || category.includes('Proteína')}🥩
+                {:else if category.includes('Latic') || category.includes('Ovo')}🥚
+                {:else if category.includes('Grão') || category.includes('Massa') || category.includes('Pã')}🌾
+                {:else if category.includes('Fruta')}🍎
+                {:else if category.includes('Vegeta') || category.includes('Legume')}🥬
+                {:else if category.includes('Óleo') || category.includes('Tempero')}🧂
+                {:else if category.includes('Castanha') || category.includes('Semente')}🥜
+                {:else}📦
+                {/if}
+                {category}
+              </h4>
+              <div class="space-y-1">
+                {#each items as item}
+                  {@const checked = isItemChecked(category, item.name)}
+                  <button
+                    onclick={() => toggleItem(category, item.name)}
+                    class="flex items-center gap-3 py-2 px-2 w-full text-left rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                  >
+                    <div class="w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all {checked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 dark:border-slate-600 group-hover:border-emerald-400'}">
+                      {#if checked}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      {/if}
+                    </div>
+                    <span class="text-sm flex-1 min-w-0 truncate transition-all {checked ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}">{item.name}</span>
+                    <span class="text-xs font-medium flex-shrink-0 transition-all {checked ? 'text-slate-300 dark:text-slate-600' : 'text-slate-400 dark:text-slate-500'}">{item.qty} {item.unit}</span>
+                  </button>
+                {/each}
               </div>
-            {/each}
-          </div>
+            {/if}
+          {/each}
         {:else}
           <p class="text-xs text-slate-400 text-center py-4">Nenhum ingrediente encontrado</p>
         {/if}

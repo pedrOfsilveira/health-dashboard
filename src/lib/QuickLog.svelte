@@ -21,7 +21,7 @@
 
       const { data: meals, error } = await supabase
         .from('meals')
-        .select('name, kcal, ptn, carb, fat')
+        .select('name, kcal, ptn, carb, fat, meal_items(name, kcal, ptn)')
         .eq('user_id', auth.session.user.id)
         .gte('date', dateStr)
         .order('created_at', { ascending: false });
@@ -41,6 +41,7 @@
             totalPtn: 0,
             totalCarb: 0,
             totalFat: 0,
+            ingredients: [], // Initialize ingredients array
           });
         }
         const entry = mealMap.get(key);
@@ -49,18 +50,51 @@
         entry.totalPtn += meal.ptn || 0;
         entry.totalCarb += meal.carb || 0;
         entry.totalFat += meal.fat || 0;
+        // Accumulate ingredients. Assuming meal.meal_items is an array.
+        if (meal.meal_items && Array.isArray(meal.meal_items)) {
+          entry.ingredients.push(...meal.meal_items);
+        }
       }
 
       // Calculate averages and sort by frequency
       const processed = Array.from(mealMap.values())
-        .map(m => ({
-          name: m.name,
-          count: m.count,
-          avgKcal: Math.round(m.totalKcal / m.count),
-          avgPtn: Math.round(m.totalPtn / m.count),
-          avgCarb: Math.round(m.totalCarb / m.count),
-          avgFat: Math.round(m.totalFat / m.count),
-        }))
+        .map(m => {
+          // Deduplicate ingredients by name and build a summary
+          const ingredientMap = new Map();
+          for (const ing of m.ingredients) {
+            const key = (ing.name || '').toLowerCase().trim();
+            if (!key) continue;
+            if (!ingredientMap.has(key)) {
+              ingredientMap.set(key, { name: ing.name, kcal: ing.kcal || 0, ptn: ing.ptn || 0, count: 1 });
+            } else {
+              ingredientMap.get(key).count++;
+            }
+          }
+          const uniqueIngredients = Array.from(ingredientMap.values());
+
+          // Build a descriptive title from the top ingredients
+          const topNames = uniqueIngredients
+            .slice(0, 3)
+            .map(i => {
+              // Capitalize first letter
+              const name = i.name.charAt(0).toUpperCase() + i.name.slice(1).toLowerCase();
+              return name;
+            });
+          const descriptiveTitle = topNames.length > 0
+            ? topNames.join(', ') + (uniqueIngredients.length > 3 ? ` +${uniqueIngredients.length - 3}` : '')
+            : m.name;
+
+          return {
+            name: m.name, // Original meal type (Almoço, Jantar, etc.)
+            title: descriptiveTitle, // Descriptive title from ingredients
+            count: m.count,
+            avgKcal: Math.round(m.totalKcal / m.count),
+            avgPtn: Math.round(m.totalPtn / m.count),
+            avgCarb: Math.round(m.totalCarb / m.count),
+            avgFat: Math.round(m.totalFat / m.count),
+            ingredients: uniqueIngredients,
+          };
+        })
         .sort((a, b) => b.count - a.count)
         .slice(0, 4); // Top 4
 
@@ -77,7 +111,8 @@
     if (!auth.session?.user) return;
 
     // Create a descriptive message for the AI to parse
-    const message = `${meal.name}`;
+    const ingredientList = meal.ingredients ? meal.ingredients.map(i => i.name).join(', ') : '';
+    const message = `Loguei ${meal.name}${ingredientList ? ' com ' + ingredientList : ''}`;
     onLog(message);
   }
 
@@ -128,14 +163,17 @@
           onclick={() => quickLog(meal)}
           class="group relative bg-white dark:bg-slate-800 rounded-xl p-3 border-2 border-emerald-100 dark:border-emerald-900 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md transition-all text-left overflow-hidden"
         >
-          <!-- Icon -->
-          <div class="text-2xl mb-2">{getMealIcon(meal.name)}</div>
+          <!-- Meal type label + Icon -->
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <span class="text-lg">{getMealIcon(meal.name)}</span>
+            <span class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{meal.name}</span>
+          </div>
           
-          <!-- Name -->
-          <p class="font-bold text-slate-800 dark:text-slate-200 text-xs mb-1 line-clamp-1">{meal.name}</p>
+          <!-- Descriptive title (what the meal is) -->
+          <p class="font-bold text-slate-800 dark:text-slate-200 text-xs mb-1.5 line-clamp-2 leading-tight">{meal.title}</p>
           
           <!-- Stats -->
-          <div class="flex items-center gap-1.5 mb-1">
+          <div class="flex items-center gap-1.5 mb-1.5">
             <span class="text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded">
               {meal.avgKcal} kcal
             </span>
@@ -144,8 +182,26 @@
             </span>
           </div>
 
+          <!-- Ingredients list -->
+          {#if meal.ingredients && meal.ingredients.length > 0}
+            <div class="border-t border-slate-100 dark:border-slate-700 pt-1.5 mt-1">
+              <div class="flex flex-wrap gap-1">
+                {#each meal.ingredients.slice(0, 4) as ing}
+                  <span class="text-[8px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded-md truncate max-w-full">
+                    {ing.qty ? ing.qty + (ing.unit ? ing.unit : '') + ' ' : ''}{ing.name}
+                  </span>
+                {/each}
+                {#if meal.ingredients.length > 4}
+                  <span class="text-[8px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded-md">
+                    +{meal.ingredients.length - 4}
+                  </span>
+                {/if}
+              </div>
+            </div>
+          {/if}
+
           <!-- Frequency badge -->
-          <div class="flex items-center gap-1">
+          <div class="flex items-center gap-1 mt-1.5">
             <div class="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold">
               {meal.count}x últimos 30d
             </div>

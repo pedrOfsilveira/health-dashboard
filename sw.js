@@ -105,3 +105,42 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+self.addEventListener('push', (event) => {
+  const data = event.data.json();
+  console.log('Push received:', data);
+
+  const title = data.title || 'Health Dashboard';
+  const options = {
+    body: data.body,
+    icon: data.icon || '/public/icon-192.png',
+    badge: data.badge || '/public/icon-192.png',
+    data: data.data || {}, // Custom data to be used on notificationclick
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close(); // Close the notification
+
+  const clickData = event.notification.data;
+  console.log('Notification clicked:', clickData);
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If there's an existing client, focus it
+      for (const client of clientList) {
+        if (client.url === '/' && 'focus' in client) { // Assuming '/' is the main app URL
+          return client.focus();
+        }
+      }
+      // Otherwise, open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(clickData.url || '/'); // Open the URL specified in data, or '/'
+      }
+      return null;
+    })
+  );
+});
+

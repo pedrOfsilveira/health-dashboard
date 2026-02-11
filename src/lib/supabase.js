@@ -199,50 +199,34 @@ export async function deleteMeal(mealId) {
 // ─── Edge Function callers ──────────────────────────────────
 
 export async function callProcessEntry(text, date) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not authenticated');
-
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/process-entry`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-      'apikey': SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify({ text, date }),
+  const { data, error } = await supabase.functions.invoke('process-entry', {
+    body: { text, date },
   });
-  return res.json();
+  if (error) throw error;
+  return data;
 }
 
 export async function callSuggestMeals(date, remaining, goals, mealHistory, healthConditions) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not authenticated');
-
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/suggest-meals`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ date, remaining, goals, mealHistory, healthConditions }),
+  const { data, error } = await supabase.functions.invoke('suggest-meals', {
+    body: { date, remaining, goals, mealHistory, healthConditions },
   });
-  return res.json();
+  if (error) throw error;
+  return data;
 }
 
 export async function callGeneratePlan(weekStart, goals, preferences, healthConditions, mealHistory) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not authenticated');
+  // Increase client-side timeout to 180s to account for long generation times
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('A geração do plano excedeu o tempo limite. Verifique se o plano foi gerado atualizando a página.')), 180000)
+  );
 
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-plan`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-      'apikey': SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify({ weekStart, goals, preferences, healthConditions, mealHistory }),
+  const invokePromise = supabase.functions.invoke('generate-plan', {
+    body: { weekStart, goals, preferences, healthConditions, mealHistory },
   });
-  return res.json();
+
+  const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
+  if (error) throw error;
+  return data;
 }
 
 export async function fetchMealPlan(userId, weekStart) {
@@ -263,12 +247,146 @@ export async function fetchMealPlan(userId, weekStart) {
     .order('sort_order', { ascending: true });
   if (entErr) throw entErr;
 
-  return { ...plan, entries: entries || [] };
+  // Build shopping list: prefer stored one, fallback to building from entries
+  let shoppingList = plan.shopping_list;
+  if (!shoppingList || Object.keys(shoppingList).length === 0) {
+    shoppingList = buildShoppingListFromEntries(entries || []);
+  } else {
+    // Deduplicate the stored shopping list
+    shoppingList = deduplicateShoppingList(shoppingList);
+  }
+
+  return { ...plan, entries: entries || [], shoppingList };
+}
+
+// ─── Shopping list helpers ──────────────────────────────────
+
+// Normalize ingredient name: lowercase, remove accents, singularize common Portuguese plurals
+function normalizeIngredientName(name) {
+  let n = name.toLowerCase().trim();
+  // Remove quantities/numbers at the start
+  n = n.replace(/^\d+\s*(g|kg|ml|l|un|unidades?|fatias?|colheres?)?\s*/i, '');
+  // Common singular/plural normalization in Portuguese
+  const pluralMap = [
+    [/ovos$/i, 'ovo'],
+    [/tomates$/i, 'tomate'],
+    [/cebolas$/i, 'cebola'],
+    [/bananas$/i, 'banana'],
+    [/batatas$/i, 'batata'],
+    [/cenouras$/i, 'cenoura'],
+    [/laranjas$/i, 'laranja'],
+    [/maçãs$/i, 'maçã'],
+    [/limões$/i, 'limão'],
+    [/pimentões$/i, 'pimentão'],
+    [/pepinos$/i, 'pepino'],
+    [/abobrinhas$/i, 'abobrinha'],
+    [/berinjelas$/i, 'berinjela'],
+    [/alfaces$/i, 'alface'],
+  ];
+  for (const [re, singular] of pluralMap) {
+    n = n.replace(re, singular);
+  }
+  return n;
+}
+
+// Categorize an ingredient by name
+function categorizeIngredient(name) {
+  const n = name.toLowerCase();
+  const categories = {
+    'Carnes e Proteínas': ['frango', 'carne', 'boi', 'porco', 'peixe', 'atum', 'salmão', 'tilápia', 'camarão', 'linguiça', 'salsicha', 'peito', 'coxa', 'sobrecoxa', 'patinho', 'acém', 'filé', 'bife', 'músculo', 'costela'],
+    'Laticínios e Ovos': ['ovo', 'leite', 'queijo', 'iogurte', 'requeijão', 'manteiga', 'cream cheese', 'ricota', 'mussarela', 'parmesão', 'creme de leite', 'nata', 'coalhada', 'whey'],
+    'Grãos, Massas e Pães': ['arroz', 'feijão', 'macarrão', 'pão', 'aveia', 'granola', 'farinha', 'tapioca', 'milho', 'cuscuz', 'lentilha', 'grão-de-bico', 'quinoa', 'massa', 'espaguete', 'torrada', 'biscoito', 'bolacha', 'cereal'],
+    'Frutas': ['banana', 'maçã', 'laranja', 'limão', 'morango', 'uva', 'manga', 'mamão', 'melão', 'melancia', 'abacaxi', 'pera', 'kiwi', 'goiaba', 'açaí', 'fruta'],
+    'Vegetais e Legumes': ['tomate', 'cebola', 'alho', 'cenoura', 'batata', 'brócolis', 'alface', 'rúcula', 'espinafre', 'couve', 'pepino', 'pimentão', 'abobrinha', 'berinjela', 'vagem', 'beterraba', 'mandioca', 'inhame', 'abóbora', 'repolho', 'salada', 'agrião', 'cheiro-verde', 'salsinha', 'cebolinha'],
+    'Óleos e Temperos': ['azeite', 'óleo', 'sal', 'pimenta', 'orégano', 'cominho', 'canela', 'açúcar', 'mel', 'vinagre', 'molho', 'shoyu', 'mostarda', 'ketchup', 'maionese', 'tempero', 'alecrim', 'cúrcuma', 'gengibre', 'páprica'],
+    'Castanhas e Sementes': ['castanha', 'amendoim', 'pasta de amendoim', 'nozes', 'amêndoa', 'chia', 'linhaça', 'gergelim', 'semente'],
+  };
+  
+  for (const [category, keywords] of Object.entries(categories)) {
+    if (keywords.some(kw => n.includes(kw))) return category;
+  }
+  return 'Outros';
+}
+
+function deduplicateShoppingList(shoppingList) {
+  const merged = {};
+  
+  for (const [category, items] of Object.entries(shoppingList)) {
+    if (!Array.isArray(items)) continue;
+    for (const item of items) {
+      const normalized = normalizeIngredientName(item.name);
+      const correctCategory = categorizeIngredient(item.name);
+      
+      if (!merged[correctCategory]) merged[correctCategory] = {};
+      
+      if (merged[correctCategory][normalized]) {
+        // Merge quantities
+        const existing = merged[correctCategory][normalized];
+        if (existing.unit === item.unit) {
+          existing.qty = String(parseFloat(existing.qty || '0') + parseFloat(item.qty || '0'));
+        }
+      } else {
+        // Capitalize first letter for display
+        const displayName = item.name.charAt(0).toUpperCase() + item.name.slice(1);
+        merged[correctCategory][normalized] = { name: displayName, qty: item.qty || '', unit: item.unit || '' };
+      }
+    }
+  }
+  
+  // Convert back to category -> array format
+  const result = {};
+  for (const [cat, items] of Object.entries(merged)) {
+    result[cat] = Object.values(items);
+  }
+  return result;
+}
+
+function buildShoppingListFromEntries(entries) {
+  const allIngredients = {};
+  
+  for (const entry of entries) {
+    if (!entry.ingredients || !Array.isArray(entry.ingredients)) continue;
+    for (const ing of entry.ingredients) {
+      const normalized = normalizeIngredientName(ing.name);
+      const category = categorizeIngredient(ing.name);
+      
+      if (!allIngredients[category]) allIngredients[category] = {};
+      
+      if (allIngredients[category][normalized]) {
+        const existing = allIngredients[category][normalized];
+        if (existing.unit === (ing.unit || '') && existing.qty && ing.qty) {
+          existing.qty = String(parseFloat(existing.qty) + parseFloat(ing.qty));
+        }
+      } else {
+        const displayName = ing.name.charAt(0).toUpperCase() + ing.name.slice(1);
+        allIngredients[category][normalized] = { name: displayName, qty: ing.qty || '', unit: ing.unit || '' };
+      }
+    }
+  }
+  
+  const result = {};
+  for (const [cat, items] of Object.entries(allIngredients)) {
+    result[cat] = Object.values(items);
+  }
+  return result;
 }
 
 export async function deleteMealPlanEntry(entryId) {
   const { error } = await supabase.from('meal_plan_entries').delete().eq('id', entryId);
   if (error) throw error;
+}
+
+export async function logCreatine(userId, date) {
+  const { data, error } = await supabase
+    .from('days')
+    .update({ creatine_taken_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('date', date)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 // ─── Friend helpers ─────────────────────────────────────────

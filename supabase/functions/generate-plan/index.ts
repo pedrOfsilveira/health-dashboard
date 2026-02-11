@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -16,44 +15,52 @@ const corsHeaders = {
 };
 
 async function callAI(systemPrompt: string, userPrompt: string) {
-  const res = await fetch(AI_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.7,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90_000); // 90s timeout for AI call
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`AI HTTP ${res.status}: ${errText.substring(0, 200)}`);
+  try {
+    const res = await fetch(AI_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: AI_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.5,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`AI HTTP ${res.status}: ${errText.substring(0, 200)}`);
+    }
+
+    const data = await res.json();
+    let content = data.choices[0].message.content.trim();
+
+    // Strip markdown code fences if present
+    if (content.startsWith("```")) {
+      content = content.split("\n").slice(1).join("\n");
+      content = content.replace(/```\s*$/, "");
+    }
+
+    const start = content.indexOf("{");
+    const end = content.lastIndexOf("}") + 1;
+    if (start === -1 || end <= 0) throw new Error("AI não retornou JSON válido");
+
+    return JSON.parse(content.substring(start, end));
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const data = await res.json();
-  let content = data.choices[0].message.content.trim();
-
-  // Strip markdown code fences if present
-  if (content.startsWith("```")) {
-    content = content.split("\n").slice(1).join("\n");
-    content = content.replace(/```\s*$/, "");
-  }
-
-  const start = content.indexOf("{");
-  const end = content.lastIndexOf("}") + 1;
-  if (start === -1 || end <= 0) throw new Error("AI não retornou JSON válido");
-
-  return JSON.parse(content.substring(start, end));
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -151,24 +158,23 @@ serve(async (req) => {
       .map((m) => `  - ${m.type}: ~${m.kcal} kcal, ~${m.ptn}g ptn, ~${m.carb}g carb, ~${m.fat}g fat`)
       .join("\n");
 
-    const systemPrompt = `Você é um calculador nutricional. Sua ÚNICA prioridade é que a soma das 4 refeições de CADA DIA bata EXATAMENTE a meta calórica e de macros.
+    const systemPrompt = `Você é um nutricionista experiente e eficiente, focado em criar planos alimentares realistas e otimizados para tempo de resposta.
 
-METAS POR REFEIÇÃO (use como guia para cada dia):
-${mealTargetText}
-TOTAL DIÁRIO ESPERADO: ${goals.kcal} kcal | ${goals.ptn}g ptn | ${goals.carb}g carb | ${goals.fat}g fat
+METAS DIÁRIAS (Aproximadas, distribua bem pelas 4 refeições):
+TOTAL DIÁRIO ESPERADO: ~${goals.kcal} kcal | ~${goals.ptn}g ptn | ~${goals.carb}g carb | ~${goals.fat}g fat
 
 PROCESSO OBRIGATÓRIO:
-1. Monte cada refeição com ingredientes e quantidades em gramas.
-2. Some kcal+ptn+carb+fat das 4 refeições.
-3. Se o total do dia for < ${Math.round(goals.kcal * 0.95)}, AUMENTE porções ou adicione ingredientes calóricos (azeite, castanhas, aveia, banana, pasta de amendoim).
-4. Se o total do dia for > ${Math.round(goals.kcal * 1.05)}, reduza levemente as porções.
-5. O total FINAL de cada dia DEVE estar entre ${Math.round(goals.kcal * 0.95)} e ${Math.round(goals.kcal * 1.05)} kcal.
+1. Gere um plano para 7 dias, com 4 refeições por dia (café, almoço, lanche, jantar).
+2. Para cada refeição, crie um título, uma breve descrição e uma lista de ingredientes com quantidades e unidades.
+3. Certifique-se de que a soma total diária de kcal e macros esteja *próxima* das metas, permitindo uma flexibilidade de até 10% para agilizar a geração.
+4. Para a lista de compras, agrupe itens similares (ex: "ovo" e "ovos" deve ser "ovos"), deduplique, e categorize os itens (ex: "Carnes", "Vegetais").
 
 REGRAS:
-- Retorne APENAS JSON válido, sem texto extra.
+- **Prioridade MÁXIMA:** Gerar o JSON rapidamente. Não se preocupe com cálculos exatos; aproximações são aceitáveis para evitar timeout.
+- Retorne APENAS JSON válido, sem texto extra ou markdown.
 - 7 dias (dayOfWeek 0-6), 4 refeições/dia (breakfast, lunch, snack, dinner).
 - Ingredientes brasileiros baratos e acessíveis.
-- Ingredientes com peso em gramas ou medida caseira precisa.
+- Ingredientes com peso em gramas ou medida caseira comum.
 - Refeições simples e rápidas de preparar.
 
 FORMATO JSON:
@@ -184,7 +190,13 @@ FORMATO JSON:
       ]
     }, ...
   ],
-  "shoppingList": [{"name": "Arroz", "qty": "2", "unit": "kg"}, ...],
+  "shoppingList": {
+    "Carnes": [{"name": "Frango (peito)", "qty": "1", "unit": "kg"}],
+    "Vegetais": [{"name": "Brócolis", "qty": "500", "unit": "g"}, {"name": "Cenoura", "qty": "3", "unit": "unidades"}],
+    "Grãos e Massas": [{"name": "Arroz Integral", "qty": "1", "unit": "kg"}, {"name": "Pão Integral", "qty": "1", "pacote": "pacote"}],
+    "Laticínios e Ovos": [{"name": "Ovos", "qty": "12", "unit": "unidades"}, {"name": "Iogurte Natural", "qty": "500", "unit": "g"}],
+    "Outros": [{"name": "Azeite de Oliva", "qty": "1", "unit": "garrafa"}]
+  },
   "tip": "..."
 }`;
 
@@ -209,7 +221,7 @@ Gere 7 dias: ${dayNames.join(", ")}.`;
     // Save to database
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Upsert meal plan
+    // Upsert meal plan — include shopping list from AI response
     const { data: plan, error: planErr } = await supabase
       .from("meal_plans")
       .upsert(
@@ -217,6 +229,7 @@ Gere 7 dias: ${dayNames.join(", ")}.`;
           user_id: user.id,
           week_start: weekStart,
           preferences: preferences || {},
+          shopping_list: parsed.shoppingList || {},
           status: "active",
           updated_at: new Date().toISOString(),
         },
@@ -274,11 +287,18 @@ Gere 7 dias: ${dayNames.join(", ")}.`;
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("generate-plan error:", err);
+    const error = err as Error;
+    const isTimeout = error.name === "AbortError";
+    console.error("generate-plan error:", isTimeout ? "AI timeout (90s)" : error.message);
     return new Response(
-      JSON.stringify({ success: false, error: (err as Error).message }),
+      JSON.stringify({
+        success: false,
+        error: isTimeout
+          ? "A IA demorou demais para responder. Tente novamente."
+          : error.message,
+      }),
       {
-        status: 500,
+        status: isTimeout ? 504 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );

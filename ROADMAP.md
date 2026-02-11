@@ -110,3 +110,25 @@ Ajuste automático de metas baseado em progresso e feedback do usuário (cutting
 ### 20. Habit Streaks
 Além de logging diário, track de hábitos específicos: "beber água antes do café", "proteína no café da manhã".
 
+
+
+WHAT I NEED TO DO NOW:
+
+I've noticed a few problems and i would like solutions using context7, Svelte MCP and Supabase MCP as necessary.  
+
+1) When i input something like "Almocei 2 sobrecoxas, 4 colheres grandes de arroz branco" the calories appear too low, probably because the "2 sobrecoxas" item appears only as "sobrecoxa". I would like to count the units, something like "2x Sobrecoxa" and I would like the caloric value to be a little more realistic, since sobrecoxas are often more caloric (this item is just an example)
+
+2) When I try to generate a weekly meal plan, the 45s wait time is too short so I get timed out and it doesnt work
+
+3) The shopping list is still not working properly, the items are not separated in categories and there are still repeated items such as "ovo" and "ovos". I want the items to pass through a filter, maybe done by the AI itself or something like that.
+
+4) The shopping list is not functional. I can't check the items to see if I have already bought them
+
+5) The quick meal log options appear only as ALMOÇO or JANTA or something like that, so the user doesnt know what goes in it. The title should tell the user what the recipe is and there should be the ingredients that make the dish somehwere, so the user knows what it is.
+
+FEATURES:
+
+1) I would like to add push notification for various aspects of the app.
+
+2) Maybe a creatine check button and notification to remind the user to take it should be good
+

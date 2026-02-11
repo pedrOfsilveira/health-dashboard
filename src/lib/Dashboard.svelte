@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { supabase, fetchDays, fetchMealsWithItems, deleteMeal as deleteMealApi, callSuggestMeals, callProcessEntry } from './supabase.js';
+  import { supabase, fetchDays, fetchMealsWithItems, deleteMeal as deleteMealApi, callSuggestMeals, callProcessEntry, logCreatine } from './supabase.js';
   import { auth, goals, profile, streak, social, handleGamificationUpdate } from './stores.svelte.js';
   import Header from './Header.svelte';
   import QuickLog from './QuickLog.svelte';
@@ -145,6 +145,7 @@
             hours: 0,
             minutes: 0,
           },
+          creatine_taken_at: day.creatine_taken_at, // Fetch creatine_taken_at
           meals: [],
           notes: day.notes ? [day.notes] : [],
         };
@@ -264,6 +265,30 @@
     return '🍽️';
   }
 
+  function getMealTypeIcon(mealName) {
+    if (!mealName) return '🍽️';
+    const n = mealName.toLowerCase();
+    if (n.includes('café') || n.includes('manhã')) return '☕';
+    if (n.includes('almoço')) return '🍽️';
+    if (n.includes('lanche')) return '🍎';
+    if (n.includes('jantar') || n.includes('janta')) return '🌙';
+    if (n.includes('ceia')) return '🌙';
+    return '🍽️';
+  }
+
+  function getMealTitle(meal) {
+    if (!meal.items || meal.items.length === 0) return meal.name;
+    // Build a descriptive title from the top items (by kcal)
+    const sorted = [...meal.items].sort((a, b) => (b.kcal || 0) - (a.kcal || 0));
+    const topItems = sorted.slice(0, 3).map(i => {
+      // Strip quantity prefixes like "2x " from item names
+      return (i.name || '').replace(/^\d+x\s*/i, '');
+    });
+    const title = topItems.join(', ');
+    if (sorted.length > 3) return title + '…';
+    return title;
+  }
+
   function formatDisplayDate(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr + 'T12:00:00');
@@ -318,6 +343,21 @@
 
   let insights = $derived(generateInsights(currentDay));
   let dates = $derived(Object.keys(allData).sort().reverse());
+
+  async function handleCreatineLog() {
+    if (!auth.session?.user) return;
+    const userId = auth.session.user.id;
+    const today = selectedDate || new Date().toISOString().split('T')[0];
+    try {
+        showNotification('Registrando creatina...', 'info');
+        await logCreatine(userId, today);
+        await loadData(); // Re-load data to update UI
+        showNotification('Creatina registrada!', 'success');
+    } catch (error) {
+        console.error('Error logging creatine:', error);
+        showNotification('Erro ao registrar creatina.', 'error');
+    }
+  }
 </script>
 
 <ConfettiCelebration bind:trigger={showConfetti} />
@@ -504,6 +544,33 @@
         <WaterTracker bind:waterMl={currentDay.water_ml} date={selectedDate} />
       </div>
 
+      <!-- Creatine Tracker -->
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Creatina</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+        <div class="flex items-center justify-between">
+          <div>
+            {#if currentDay?.creatine_taken_at}
+              <p class="text-lg font-black text-emerald-600 dark:text-emerald-400">Tomada!</p>
+              <p class="text-[10px] text-slate-500 dark:text-slate-400">Última vez: {new Date(currentDay.creatine_taken_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+            {:else}
+              <p class="text-lg font-black text-red-500 dark:text-red-400">Não tomada hoje</p>
+              <p class="text-[10px] text-slate-500 dark:text-slate-400">Registre sua dose diária</p>
+            {/if}
+          </div>
+          <button
+            onclick={handleCreatineLog}
+            class="px-5 py-2.5 rounded-2xl font-black text-sm transition-all
+              {currentDay?.creatine_taken_at ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 opacity-60 cursor-not-allowed' : 'bg-emerald-500 text-white hover:bg-emerald-600 active:scale-95'}"
+            disabled={currentDay?.creatine_taken_at}
+          >
+            {currentDay?.creatine_taken_at ? '✅ Registrado' : '💊 Tomar Creatina'}
+          </button>
+        </div>
+      </div>
+
       <!-- Weekly Progress Chart -->
       {#if Object.keys(allData).length > 1}
         <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6">
@@ -532,47 +599,49 @@
       {:else}
         <div class="space-y-3 mb-6">
           {#each currentDay.meals as meal, idx (meal.id)}
-            <details class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl overflow-hidden hover:border-slate-300 dark:hover:border-slate-600 transition-colors group" open={idx === 0}>
-              <summary class="px-5 py-4 cursor-pointer flex items-center gap-4 list-none [&::-webkit-details-marker]:hidden">
-                <div class="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-2xl shadow-inner flex-shrink-0">{getItemIcon(meal.name)}</div>
-                <div class="flex-1 min-w-0">
-                  <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm tracking-tight truncate">{meal.name}</h3>
-                  <div class="flex items-center gap-2 mt-0.5">
-                    <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{meal.kcal} kcal</span>
-                    <div class="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700"></div>
-                    <span class="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-tighter">{meal.ptn}g ptn</span>
+            {@const mealIcon = getMealTypeIcon(meal.name)}
+            {@const mealTitle = getMealTitle(meal)}
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm transition-colors">
+              <!-- Header: type label + title + delete -->
+              <div class="flex items-start justify-between gap-2 mb-2">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                  <span class="text-lg flex-shrink-0">{mealIcon}</span>
+                  <div class="min-w-0">
+                    <p class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{meal.name}</p>
+                    <p class="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{mealTitle}</p>
                   </div>
                 </div>
                 <button
-                  onclick={(e) => { e.preventDefault(); handleDeleteMeal(meal.id); }}
-                  class="p-2 text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 transition-colors flex-shrink-0"
+                  onclick={() => handleDeleteMeal(meal.id)}
+                  class="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors flex-shrink-0"
                   title="Excluir refeição"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-300 dark:text-slate-600 transition-transform group-open:rotate-180 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </summary>
-              <div class="px-5 pb-4 pt-2 border-t border-slate-50 dark:border-slate-700">
-                {#each meal.items as item}
-                  <div class="flex items-start py-3 border-t border-dashed border-slate-100 dark:border-slate-700 first:border-0">
-                    <span class="mr-4 text-xl">{getItemIcon(item.name)}</span>
-                    <div class="flex-1">
-                      <p class="font-bold text-slate-700 dark:text-slate-300 text-xs">{item.name}</p>
-                      <div class="flex gap-2 mt-1">
-                        <span class="text-[10px] font-bold px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-md">{item.kcal} kcal</span>
-                        <span class="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-md">{item.ptn}g P</span>
-                      </div>
-                    </div>
-                  </div>
-                {:else}
-                  <p class="text-xs text-slate-400 dark:text-slate-500 italic py-2">Sem sub-itens detalhados.</p>
-                {/each}
               </div>
-            </details>
+
+              <!-- Macro chips -->
+              <div class="flex gap-2 mb-2 flex-wrap">
+                <span class="text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-lg">{meal.kcal} kcal</span>
+                <span class="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-lg">{meal.ptn}g ptn</span>
+                <span class="text-[10px] font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-lg">{meal.carb}g carb</span>
+                <span class="text-[10px] font-bold bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-lg">{meal.fat}g gord</span>
+              </div>
+
+              <!-- Ingredients (items) -->
+              {#if meal.items && meal.items.length > 0}
+                <div class="border-t border-slate-100 dark:border-slate-700 pt-2 mt-2">
+                  <p class="text-[8px] font-black text-slate-400 uppercase tracking-wider mb-1">Ingredientes</p>
+                  <div class="flex flex-wrap gap-1">
+                    {#each meal.items as item}
+                      <span class="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-0.5 rounded-md max-w-full truncate">
+                        {getItemIcon(item.name)} {item.name} · {item.kcal}kcal · {item.ptn}g P
+                      </span>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+            </div>
           {/each}
         </div>
       {/if}
