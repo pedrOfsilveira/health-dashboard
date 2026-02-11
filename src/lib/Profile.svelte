@@ -1,13 +1,76 @@
 <script>
   import { profile, goals, streak, achievements, xp, navigate, auth, calculateGoals } from './stores.svelte.js';
-  import { upsertProfile } from './supabase.js';
+  import { upsertProfile, fetchNotificationPreferences, upsertNotificationPreferences } from './supabase.js';
   import { exportCSV, exportPDF } from './exportData.js';
   import BadgeGrid from './BadgeGrid.svelte';
+  import { onMount } from 'svelte';
 
   let editing = $state(false);
   let saving = $state(false);
   let exporting = $state(false);
   let form = $state(/** @type {any} */ ({}));
+
+  // Notification preferences
+  let notifLoading = $state(true);
+  let notifSaving = $state(false);
+  let notif = $state({
+    water_enabled: false,
+    water_interval_minutes: 60,
+    water_start_time: '08:00',
+    water_end_time: '22:00',
+    creatine_enabled: false,
+    creatine_time: '09:00',
+    meal_enabled: false,
+    meal_breakfast_time: '07:30',
+    meal_lunch_time: '12:00',
+    meal_snack_time: '15:30',
+    meal_dinner_time: '19:30',
+  });
+
+  onMount(async () => {
+    if (auth.session?.user?.id) {
+      try {
+        const prefs = await fetchNotificationPreferences(auth.session.user.id);
+        if (prefs) {
+          // Strip seconds from time strings (DB returns HH:MM:SS)
+          const strip = (t) => t ? t.slice(0, 5) : t;
+          notif = {
+            water_enabled: prefs.water_enabled,
+            water_interval_minutes: prefs.water_interval_minutes,
+            water_start_time: strip(prefs.water_start_time),
+            water_end_time: strip(prefs.water_end_time),
+            creatine_enabled: prefs.creatine_enabled,
+            creatine_time: strip(prefs.creatine_time),
+            meal_enabled: prefs.meal_enabled,
+            meal_breakfast_time: strip(prefs.meal_breakfast_time),
+            meal_lunch_time: strip(prefs.meal_lunch_time),
+            meal_snack_time: strip(prefs.meal_snack_time),
+            meal_dinner_time: strip(prefs.meal_dinner_time),
+          };
+        }
+      } catch (e) {
+        console.error('Failed to load notification preferences:', e);
+      } finally {
+        notifLoading = false;
+      }
+    } else {
+      notifLoading = false;
+    }
+  });
+
+  async function saveNotifPrefs() {
+    notifSaving = true;
+    try {
+      await upsertNotificationPreferences({
+        user_id: auth.session.user.id,
+        ...notif,
+      });
+    } catch (e) {
+      alert('Erro ao salvar notificações: ' + e.message);
+    } finally {
+      notifSaving = false;
+    }
+  }
 
   const activityLabels = {
     sedentary: 'Sedentário',
@@ -303,6 +366,156 @@
         <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase mt-1">Gordura</p>
       </div>
     </div>
+  </div>
+
+  <!-- Notifications Settings -->
+  <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6 transition-colors">
+    <div class="flex items-center gap-3 mb-5">
+      <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Notificações</span>
+      <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+    </div>
+
+    {#if notifLoading}
+      <div class="flex items-center justify-center py-6">
+        <div class="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+      </div>
+    {:else}
+      <div class="space-y-6">
+
+        <!-- Water reminders -->
+        <div>
+          <label class="flex items-center justify-between cursor-pointer group">
+            <div class="flex items-center gap-3">
+              <span class="text-xl">💧</span>
+              <div>
+                <p class="text-sm font-bold text-slate-800 dark:text-slate-100">Lembrete de Água</p>
+                <p class="text-[10px] text-slate-400 dark:text-slate-500">Notificações periódicas para beber água</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-label="Ativar lembrete de água"
+              aria-checked={notif.water_enabled}
+              onclick={() => notif.water_enabled = !notif.water_enabled}
+              class="relative w-11 h-6 rounded-full transition-colors {notif.water_enabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}"
+            >
+              <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform {notif.water_enabled ? 'translate-x-5' : ''}"></span>
+            </button>
+          </label>
+          {#if notif.water_enabled}
+            <div class="mt-3 ml-9 space-y-3">
+              <div>
+                <label for="water-interval" class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Intervalo</label>
+                <select id="water-interval" bind:value={notif.water_interval_minutes} class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <option value={30}>A cada 30 min</option>
+                  <option value={60}>A cada 1 hora</option>
+                  <option value={90}>A cada 1h30</option>
+                  <option value={120}>A cada 2 horas</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label for="water-start" class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Início</label>
+                  <input id="water-start" type="time" bind:value={notif.water_start_time} class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100" />
+                </div>
+                <div>
+                  <label for="water-end" class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Fim</label>
+                  <input id="water-end" type="time" bind:value={notif.water_end_time} class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100" />
+                </div>
+              </div>
+            </div>
+          {/if}
+        </div>
+
+        <div class="h-px bg-slate-100 dark:bg-slate-700"></div>
+
+        <!-- Creatine reminder -->
+        <div>
+          <label class="flex items-center justify-between cursor-pointer group">
+            <div class="flex items-center gap-3">
+              <span class="text-xl">💊</span>
+              <div>
+                <p class="text-sm font-bold text-slate-800 dark:text-slate-100">Lembrete de Creatina</p>
+                <p class="text-[10px] text-slate-400 dark:text-slate-500">Lembrete diário para tomar creatina</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-label="Ativar lembrete de creatina"
+              aria-checked={notif.creatine_enabled}
+              onclick={() => notif.creatine_enabled = !notif.creatine_enabled}
+              class="relative w-11 h-6 rounded-full transition-colors {notif.creatine_enabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}"
+            >
+              <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform {notif.creatine_enabled ? 'translate-x-5' : ''}"></span>
+            </button>
+          </label>
+          {#if notif.creatine_enabled}
+            <div class="mt-3 ml-9">
+              <label for="creatine-time" class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Horário</label>
+              <input id="creatine-time" type="time" bind:value={notif.creatine_time} class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100" />
+            </div>
+          {/if}
+        </div>
+
+        <div class="h-px bg-slate-100 dark:bg-slate-700"></div>
+
+        <!-- Meal reminders -->
+        <div>
+          <label class="flex items-center justify-between cursor-pointer group">
+            <div class="flex items-center gap-3">
+              <span class="text-xl">🍽️</span>
+              <div>
+                <p class="text-sm font-bold text-slate-800 dark:text-slate-100">Lembretes de Refeição</p>
+                <p class="text-[10px] text-slate-400 dark:text-slate-500">Lembretes para registrar suas refeições</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-label="Ativar lembretes de refeição"
+              aria-checked={notif.meal_enabled}
+              onclick={() => notif.meal_enabled = !notif.meal_enabled}
+              class="relative w-11 h-6 rounded-full transition-colors {notif.meal_enabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}"
+            >
+              <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform {notif.meal_enabled ? 'translate-x-5' : ''}"></span>
+            </button>
+          </label>
+          {#if notif.meal_enabled}
+            <div class="mt-3 ml-9 space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label for="meal-breakfast" class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">☕ Café</label>
+                  <input id="meal-breakfast" type="time" bind:value={notif.meal_breakfast_time} class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100" />
+                </div>
+                <div>
+                  <label for="meal-lunch" class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">🍽️ Almoço</label>
+                  <input id="meal-lunch" type="time" bind:value={notif.meal_lunch_time} class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100" />
+                </div>
+                <div>
+                  <label for="meal-snack" class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">🍎 Lanche</label>
+                  <input id="meal-snack" type="time" bind:value={notif.meal_snack_time} class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100" />
+                </div>
+                <div>
+                  <label for="meal-dinner" class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">🌙 Jantar</label>
+                  <input id="meal-dinner" type="time" bind:value={notif.meal_dinner_time} class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100" />
+                </div>
+              </div>
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Save button -->
+      <button
+        onclick={saveNotifPrefs}
+        disabled={notifSaving}
+        class="w-full mt-6 py-3 bg-emerald-500 text-white rounded-2xl font-bold text-sm hover:bg-emerald-600 transition-colors disabled:opacity-60"
+      >
+        {notifSaving ? 'Salvando...' : '💾 Salvar Preferências'}
+      </button>
+    {/if}
   </div>
 
   <!-- Badges Section -->

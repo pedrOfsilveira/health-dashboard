@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "./vendor/webpush.ts";
 
@@ -21,7 +20,7 @@ webpush.setVapidDetails(
   VAPID_PRIVATE_KEY,
 );
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -48,25 +47,42 @@ serve(async (req) => {
 
     const userIdsWithoutCreatine = daysWithoutCreatine.map((d) => d.user_id);
 
-    // 2. Fetch push subscriptions for these users
-    const { data: subscriptions, error: subError } = await supabaseAdmin
-      .from("push_subscriptions")
-      .select("*")
-      .in("user_id", userIdsWithoutCreatine);
+    // 2. Check notification preferences — only include users who have creatine_enabled = true
+    const { data: prefs, error: prefsError } = await supabaseAdmin
+      .from("notification_preferences")
+      .select("user_id")
+      .in("user_id", userIdsWithoutCreatine)
+      .eq("creatine_enabled", true);
 
-    if (subError) throw subError;
+    if (prefsError) throw prefsError;
 
-    if (!subscriptions || subscriptions.length === 0) {
-      return new Response(JSON.stringify({ message: "No active subscriptions for users without creatine log today." }), {
+    // If no one opted in, skip
+    const eligibleUserIds = (prefs || []).map((p) => p.user_id);
+    if (eligibleUserIds.length === 0) {
+      return new Response(JSON.stringify({ message: "No users with creatine reminders enabled." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // 3. Send push notifications
-    const notificationsSent: Promise<any>[] = [];
+    // 3. Fetch push subscriptions for eligible users only
+    const { data: subscriptions, error: subError } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("*")
+      .in("user_id", eligibleUserIds);
+
+    if (subError) throw subError;
+
+    if (!subscriptions || subscriptions.length === 0) {
+      return new Response(JSON.stringify({ message: "No active subscriptions for eligible users." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 4. Send push notifications
+    const notificationsSent: Promise<void>[] = [];
     const payload = JSON.stringify({
       title: "Lembrete de Creatina",
-      body: "Não se esqueça de tomar sua creatina hoje!",
+      body: "Não se esqueça de tomar sua creatina hoje! 💊",
       icon: "/public/icon-192.png",
       data: { url: "/" },
     });
@@ -83,7 +99,7 @@ serve(async (req) => {
       notificationsSent.push(
         webpush.sendNotification(pushSubscription, payload)
           .then(() => console.log(`Push notification sent to user ${sub.user_id}`))
-          .catch(async (err) => {
+          .catch(async (err: { statusCode?: number }) => {
             console.error(`Failed to send push to user ${sub.user_id}:`, err);
             // If the subscription is invalid, remove it from the database
             if (err.statusCode === 404 || err.statusCode === 410) {
@@ -94,7 +110,7 @@ serve(async (req) => {
       );
     }
 
-    await Promise.allSettled(notificationsSent); // Wait for all pushes to attempt sending
+    await Promise.allSettled(notificationsSent);
 
     return new Response(JSON.stringify({ message: `Creatine reminders sent to ${subscriptions.length} users.` }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

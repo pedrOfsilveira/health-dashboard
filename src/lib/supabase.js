@@ -617,3 +617,25 @@ export async function fetchPendingRequests(userId) {
     requester_name: profileMap[f.requester_id]?.name || 'Usuário',
   }));
 }
+
+// ─── Notification Preferences ───────────────────────────────
+
+export async function fetchNotificationPreferences(userId) {
+  const { data, error } = await supabase
+    .from('notification_preferences')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error && error.code !== 'PGRST116') throw error;
+  return data;
+}
+
+export async function upsertNotificationPreferences(prefs) {
+  const { data, error } = await supabase
+    .from('notification_preferences')
+    .upsert(prefs, { onConflict: 'user_id' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
