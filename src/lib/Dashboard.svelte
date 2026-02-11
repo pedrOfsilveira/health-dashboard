@@ -889,6 +889,22 @@
                   <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500">{item.kcal} kcal</span>
                 </div>
               {/each}
+
+              <!-- Add suggestion as meal -->
+              <button
+                onclick={() => {
+                  const itemsText = (s.items || []).map(i => (i.amount ? i.amount + ' ' : '') + i.name).join(', ');
+                  handleQuickLog(`${s.name}: ${itemsText}`);
+                }}
+                disabled={processingLog}
+                class="w-full mt-3 py-2.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-xl font-bold text-xs border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {#if processingLog}
+                  ⏳ Registrando...
+                {:else}
+                  ➕ Registrar Refeição
+                {/if}
+              </button>
             </div>
           {/each}
 

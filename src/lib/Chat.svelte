@@ -125,7 +125,7 @@
 
 <!-- Chat Modal -->
 {#if open}
-  <div class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[85vw] max-w-[400px] max-h-[75dvh] bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 flex flex-col overflow-hidden z-50 sm:left-auto sm:right-8 sm:translate-x-0 sm:bottom-28 sm:w-[400px]"
+  <div class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[85vw] max-w-[400px] max-h-[85dvh] bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 flex flex-col overflow-hidden z-50 sm:left-auto sm:right-8 sm:translate-x-0 sm:bottom-28 sm:w-[400px]"
     style="animation: slideUp 0.3s ease-out"
   >
     <!-- Header -->

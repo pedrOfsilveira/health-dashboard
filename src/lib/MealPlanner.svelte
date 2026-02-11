@@ -258,8 +258,7 @@
         class="w-full py-3.5 bg-emerald-500 text-white rounded-2xl font-black text-sm hover:bg-emerald-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
       >
         {#if generating}
-          <div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-          {generateProgress || 'Gerando plano...'}
+          ⏳ {generateProgress || 'Gerando plano...'}
         {:else}
           ✨ Gerar Plano Semanal
         {/if}
@@ -383,7 +382,7 @@
       >
         🛒 {showShopping ? 'Esconder' : 'Lista de Compras'}
         {#if totalItems() > 0}
-          <span class="text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full">{checkedCount()}/{totalItems()}</span>
+          <span class="text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full ml-1">{checkedCount()}/{totalItems()}</span>
         {/if}
       </button>
       <button
@@ -392,7 +391,7 @@
         class="flex-1 py-3 bg-emerald-500 text-white rounded-2xl font-bold text-sm hover:bg-emerald-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
       >
         {#if generating}
-          <div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+          ⏳
         {:else}
           🔄
         {/if}
