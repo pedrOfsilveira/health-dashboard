@@ -81,6 +81,63 @@
     return { kcal, ptn: Math.round(ptn), carb: Math.round(carb), fat: Math.round(fat) };
   });
 
+  function normalizeHealthConditions(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.map(c => c.trim()).filter(Boolean);
+    return String(raw)
+      .split(',')
+      .map(c => c.trim())
+      .filter(Boolean);
+  }
+
+  const healthRules = [
+    {
+      label: 'Gastrite/Refluxo',
+      match: ['gastrite', 'refluxo', 'azia'],
+      avoid: ['café', 'pimenta', 'frit', 'frito', 'fritura', 'álcool', 'tomate', 'cítrico', 'laranja', 'limão', 'chocolate', 'refrigerante'],
+      tip: 'Prefira refeições leves e pouco ácidas.',
+    },
+    {
+      label: 'Lactose',
+      match: ['lactose', 'intolerância à lactose', 'intolerancia a lactose'],
+      avoid: ['leite', 'queijo', 'iogurte', 'creme', 'manteiga', 'requeijão'],
+      tip: 'Opte por versões sem lactose.',
+    },
+    {
+      label: 'Glúten',
+      match: ['glúten', 'gluten', 'celíaco', 'celiaco'],
+      avoid: ['trigo', 'pão', 'massa', 'macarrão', 'farinha', 'bolo', 'biscoito'],
+      tip: 'Use opções sem glúten (arroz, batata, milho).',
+    },
+  ];
+
+  function buildPlanHealthWarnings(planData, rawConditions) {
+    const conditions = normalizeHealthConditions(rawConditions).map(c => c.toLowerCase());
+    if (!planData?.entries || conditions.length === 0) return [];
+    const activeRules = healthRules.filter(rule =>
+      conditions.some(c => rule.match.some(m => c.includes(m)))
+    );
+    if (activeRules.length === 0) return [];
+
+    const ingredients = [];
+    for (const entry of planData.entries) {
+      for (const ing of entry.ingredients || []) {
+        if (ing.name) ingredients.push(ing.name.toLowerCase());
+      }
+    }
+
+    return activeRules.map(rule => {
+      const hits = rule.avoid.filter(a => ingredients.some(i => i.includes(a)));
+      return {
+        label: rule.label,
+        hits: hits.slice(0, 4),
+        tip: rule.tip,
+      };
+    });
+  }
+
+  let planHealthWarnings = $derived.by(() => buildPlanHealthWarnings(plan, profile.data?.health_conditions));
+
 
 
   async function loadPlan() {
@@ -246,6 +303,26 @@
         <p class="text-[8px] font-bold text-slate-400 uppercase">gord</p>
       </div>
     </div>
+
+    {#if planHealthWarnings.length > 0}
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 mb-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Condições de Saúde</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+        <div class="space-y-2">
+          {#each planHealthWarnings as warn}
+            <div class="rounded-xl px-3 py-2 text-xs border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200">
+              <p class="font-bold">{warn.label}</p>
+              {#if warn.hits.length > 0}
+                <p class="text-[10px]">Possíveis gatilhos: {warn.hits.join(', ')}.</p>
+              {/if}
+              <p class="text-[10px]">💡 {warn.tip}</p>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     <!-- Meals list -->
     <div class="space-y-3 mb-6 min-h-[200px]">

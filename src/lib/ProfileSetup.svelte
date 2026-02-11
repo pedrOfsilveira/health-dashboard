@@ -163,18 +163,18 @@
                 <button
                   type="button"
                   onclick={() => sex = 'male'}
-                  class="flex-1 py-3 rounded-2xl font-bold text-sm transition-all {sex === 'male' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
-                >♂ M</button>
+                  class="flex-1 h-11 px-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5 leading-none {sex === 'male' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
+                ><span>♂</span><span>Masculino</span></button>
                 <button
                   type="button"
                   onclick={() => sex = 'female'}
-                  class="flex-1 py-3 rounded-2xl font-bold text-sm transition-all {sex === 'female' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
-                >♀ F</button>
+                  class="flex-1 h-11 px-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5 leading-none {sex === 'female' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
+                ><span>♀</span><span>Feminino</span></button>
                 <button
                   type="button"
                   onclick={() => sex = 'other'}
-                  class="flex-1 py-3 rounded-2xl font-bold text-sm transition-all {sex === 'other' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
-                >Outro</button>
+                  class="flex-1 h-11 px-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5 leading-none {sex === 'other' ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
+                ><span>⚧</span><span>Outro</span></button>
               </div>
             </div>
           </div>

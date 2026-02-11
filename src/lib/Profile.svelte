@@ -1,8 +1,9 @@
 <script>
   import { profile, goals, streak, achievements, xp, navigate, auth, calculateGoals } from './stores.svelte.js';
-  import { upsertProfile, fetchNotificationPreferences, upsertNotificationPreferences, subscribeToPushNotifications, requestNotificationPermission, pushNotificationsSupported } from './supabase.js';
+  import { upsertProfile, fetchNotificationPreferences, upsertNotificationPreferences, subscribeToPushNotifications, requestNotificationPermission, pushNotificationsSupported, fetchDays } from './supabase.js';
   import { exportCSV, exportPDF } from './exportData.js';
   import BadgeGrid from './BadgeGrid.svelte';
+  import WeeklyChart from './WeeklyChart.svelte';
   import { onMount } from 'svelte';
 
   let editing = $state(false);
@@ -27,34 +28,118 @@
     meal_dinner_time: '19:30',
   });
 
+  let weeklyData = $state({});
+  let weeklyLoading = $state(true);
+
+  let dashboardPrefs = $state({ showCreatine: true });
+  let dashboardPrefsLoading = $state(true);
+
+  function dashboardPrefsKey() {
+    return auth.session?.user?.id
+      ? `dashboard_prefs_${auth.session.user.id}`
+      : 'dashboard_prefs_guest';
+  }
+
+  function loadDashboardPrefs() {
+    dashboardPrefsLoading = true;
+    try {
+      const raw = localStorage.getItem(dashboardPrefsKey());
+      const parsed = raw ? JSON.parse(raw) : null;
+      dashboardPrefs = {
+        showCreatine: parsed?.showCreatine !== false,
+      };
+    } catch {
+      dashboardPrefs = { showCreatine: true };
+    } finally {
+      dashboardPrefsLoading = false;
+    }
+  }
+
+  function saveDashboardPrefs() {
+    try {
+      localStorage.setItem(dashboardPrefsKey(), JSON.stringify(dashboardPrefs));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function toggleDashboardPref(field) {
+    dashboardPrefs[field] = !dashboardPrefs[field];
+    saveDashboardPrefs();
+  }
+
+  async function loadNotificationPrefs() {
+    if (!auth.session?.user?.id) {
+      notifLoading = false;
+      return;
+    }
+
+    try {
+      const prefs = await fetchNotificationPreferences(auth.session.user.id);
+      if (prefs) {
+        // Strip seconds from time strings (DB returns HH:MM:SS)
+        const strip = (t) => t ? t.slice(0, 5) : t;
+        notif = {
+          water_enabled: prefs.water_enabled,
+          water_interval_minutes: prefs.water_interval_minutes,
+          water_start_time: strip(prefs.water_start_time),
+          water_end_time: strip(prefs.water_end_time),
+          creatine_enabled: prefs.creatine_enabled,
+          creatine_time: strip(prefs.creatine_time),
+          meal_enabled: prefs.meal_enabled,
+          meal_breakfast_time: strip(prefs.meal_breakfast_time),
+          meal_lunch_time: strip(prefs.meal_lunch_time),
+          meal_snack_time: strip(prefs.meal_snack_time),
+          meal_dinner_time: strip(prefs.meal_dinner_time),
+        };
+      }
+    } catch (e) {
+      console.error('Failed to load notification preferences:', e);
+    } finally {
+      notifLoading = false;
+    }
+  }
+
+  async function loadWeeklyData() {
+    if (!auth.session?.user?.id) {
+      weeklyLoading = false;
+      return;
+    }
+
+    weeklyLoading = true;
+    try {
+      const days = await fetchDays(auth.session.user.id);
+      const dataByDate = {};
+      for (const day of days) {
+        dataByDate[day.date] = {
+          date: day.date,
+          summary: {
+            kcal: day.kcal_total || 0,
+            ptn: day.ptn_total || 0,
+            carb: day.carb_total || 0,
+            fat: day.fat_total || 0,
+          },
+        };
+      }
+      weeklyData = dataByDate;
+    } catch (e) {
+      console.error('Failed to load weekly data:', e);
+    } finally {
+      weeklyLoading = false;
+    }
+  }
+
   onMount(async () => {
     if (auth.session?.user?.id) {
-      try {
-        const prefs = await fetchNotificationPreferences(auth.session.user.id);
-        if (prefs) {
-          // Strip seconds from time strings (DB returns HH:MM:SS)
-          const strip = (t) => t ? t.slice(0, 5) : t;
-          notif = {
-            water_enabled: prefs.water_enabled,
-            water_interval_minutes: prefs.water_interval_minutes,
-            water_start_time: strip(prefs.water_start_time),
-            water_end_time: strip(prefs.water_end_time),
-            creatine_enabled: prefs.creatine_enabled,
-            creatine_time: strip(prefs.creatine_time),
-            meal_enabled: prefs.meal_enabled,
-            meal_breakfast_time: strip(prefs.meal_breakfast_time),
-            meal_lunch_time: strip(prefs.meal_lunch_time),
-            meal_snack_time: strip(prefs.meal_snack_time),
-            meal_dinner_time: strip(prefs.meal_dinner_time),
-          };
-        }
-      } catch (e) {
-        console.error('Failed to load notification preferences:', e);
-      } finally {
-        notifLoading = false;
-      }
+      await Promise.all([
+        loadNotificationPrefs(),
+        loadWeeklyData(),
+        loadDashboardPrefs(),
+      ]);
     } else {
       notifLoading = false;
+      weeklyLoading = false;
+      dashboardPrefsLoading = false;
     }
   });
 
@@ -260,6 +345,11 @@
     </div>
   </div>
 
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Resumo</span>
+    <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+  </div>
+
   <!-- Stats Cards -->
   <div class="grid grid-cols-3 gap-3 mb-6">
     <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center transition-colors">
@@ -274,6 +364,32 @@
       <p class="text-2xl font-black text-slate-900 dark:text-slate-100">⚡ {xp.total}</p>
       <p class="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1">XP Total</p>
     </div>
+  </div>
+
+  <!-- Weekly Progress Chart -->
+  {#if weeklyLoading}
+    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Progresso Semanal</span>
+        <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+      </div>
+      <div class="flex items-center justify-center py-6">
+        <div class="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+      </div>
+    </div>
+  {:else if Object.keys(weeklyData).length > 1}
+    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Progresso Semanal</span>
+        <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+      </div>
+      <WeeklyChart data={weeklyData} />
+    </div>
+  {/if}
+
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Perfil</span>
+    <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
   </div>
 
   <!-- Body Info -->
@@ -390,14 +506,27 @@
           {/if}
         </div>
 
-        {#if profile.data?.health_conditions}
-          <div class="border-t border-slate-100 dark:border-slate-700 pt-4">
-            <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Condições de Saúde</p>
-            <p class="text-sm text-slate-700 dark:text-slate-300">{profile.data.health_conditions}</p>
-          </div>
-        {/if}
       </div>
     {/if}
+  </div>
+
+  {#if !editing}
+    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6 transition-colors">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Saúde & Condições</span>
+        <button onclick={startEdit} class="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 transition-colors">Editar ✏️</button>
+      </div>
+      {#if profile.data?.health_conditions}
+        <p class="text-sm text-slate-700 dark:text-slate-300">{profile.data.health_conditions}</p>
+      {:else}
+        <p class="text-xs text-slate-500 dark:text-slate-400">Nenhuma condição cadastrada. Adicione para receber recomendações mais precisas.</p>
+      {/if}
+    </div>
+  {/if}
+
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Metas</span>
+    <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
   </div>
 
   <!-- Current Goals -->
@@ -424,6 +553,39 @@
         <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase mt-1">Gordura</p>
       </div>
     </div>
+  </div>
+
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Preferências</span>
+    <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6 transition-colors">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-xl">💊</span>
+        <div>
+          <p class="text-sm font-bold text-slate-800 dark:text-slate-100">Mostrar creatina no início</p>
+          <p class="text-[10px] text-slate-400 dark:text-slate-500">Oculta o card de creatina do dashboard</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-label="Mostrar creatina no dashboard"
+        aria-checked={dashboardPrefs.showCreatine}
+        onclick={() => toggleDashboardPref('showCreatine')}
+        disabled={dashboardPrefsLoading}
+        class="relative w-11 h-6 rounded-full transition-colors {dashboardPrefs.showCreatine ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}"
+      >
+        <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform {dashboardPrefs.showCreatine ? 'translate-x-5' : ''}"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Notificações</span>
+    <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
   </div>
 
   <!-- Notifications Settings -->
@@ -576,6 +738,11 @@
     {/if}
   </div>
 
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Conquistas</span>
+    <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+  </div>
+
   <!-- Badges Section -->
   <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6 transition-colors">
     <div class="flex items-center gap-3 mb-5">
@@ -583,6 +750,11 @@
       <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
     </div>
     <BadgeGrid />
+  </div>
+
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Exportar</span>
+    <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
   </div>
 
   <!-- Export Data -->
@@ -608,6 +780,11 @@
         📑 PDF
       </button>
     </div>
+  </div>
+
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-[10px] font-black text-red-400 dark:text-red-500 uppercase tracking-widest">Zona de Perigo</span>
+    <div class="flex-1 h-px bg-red-100 dark:bg-red-900/50"></div>
   </div>
 
   <!-- Danger Zone -->

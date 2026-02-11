@@ -8,7 +8,6 @@
   import AchievementToast from './AchievementToast.svelte';
   import ConfettiCelebration from './ConfettiCelebration.svelte';
   import Leaderboard from './Leaderboard.svelte';
-  import WeeklyChart from './WeeklyChart.svelte';
   import WaterTracker from './WaterTracker.svelte';
   import PullToRefresh from './PullToRefresh.svelte';
 
@@ -16,8 +15,6 @@
   let selectedDate = $state(null);
   let loading = $state(true);
   let loadError = $state(null);
-  let macroChart = $state(null);
-  let canvasEl = $state(null);
 
   // Suggestions
   let suggestLoading = $state(false);
@@ -70,6 +67,7 @@
   let processingLog = $state(false);
   let notification = $state({ show: false, message: '', type: 'info' });
   let notifTimeout;
+  let dashboardPrefs = $state({ showCreatine: true });
 
   function showNotification(msg, type = 'info') {
     notification = { show: true, message: msg, type };
@@ -77,6 +75,24 @@
     notifTimeout = setTimeout(() => {
       notification.show = false;
     }, 4000);
+  }
+
+  function dashboardPrefsKey() {
+    return auth.session?.user?.id
+      ? `dashboard_prefs_${auth.session.user.id}`
+      : 'dashboard_prefs_guest';
+  }
+
+  function loadDashboardPrefs() {
+    try {
+      const raw = localStorage.getItem(dashboardPrefsKey());
+      const parsed = raw ? JSON.parse(raw) : null;
+      dashboardPrefs = {
+        showCreatine: parsed?.showCreatine !== false,
+      };
+    } catch {
+      dashboardPrefs = { showCreatine: true };
+    }
   }
 
   async function handleQuickLog(text) {
@@ -113,6 +129,12 @@
   onMount(() => {
     loadData();
     subscribeToChanges();
+    loadDashboardPrefs();
+  });
+
+  $effect(() => {
+    auth.session?.user?.id;
+    loadDashboardPrefs();
   });
 
   async function loadData() {
@@ -222,9 +244,7 @@
       if (day.meals) day.meals.forEach(m => mealHistory.push(m));
     });
 
-    const healthConditions = (currentDay.notes || [])
-      .filter(n => n && n.includes('[SAÚDE]'))
-      .map(n => n.replace('[SAÚDE] ', '').trim());
+    const healthConditions = combinedHealthConditions;
 
     try {
       const result = await callSuggestMeals(
@@ -295,6 +315,98 @@
     return d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
+  function formatDateTabDay(dateStr) {
+    return new Date(dateStr + 'T12:00:00').getDate().toString().padStart(2, '0');
+  }
+
+  function formatDateTabMonth(dateStr) {
+    return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+  }
+
+  function normalizeHealthConditions(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+      return raw.map(c => c.trim()).filter(Boolean);
+    }
+    return String(raw)
+      .split(',')
+      .map(c => c.trim())
+      .filter(Boolean);
+  }
+
+  const healthRules = [
+    {
+      key: 'gastrite',
+      match: ['gastrite', 'refluxo', 'azia'],
+      avoid: ['café', 'pimenta', 'frit', 'frito', 'fritura', 'álcool', 'tomate', 'cítrico', 'laranja', 'limão', 'chocolate', 'refrigerante', 'menta'],
+      tip: 'Prefira refeições leves, pouco gordurosas e evite muito ácido ou picante.',
+      label: 'Gastrite/Refluxo',
+    },
+    {
+      key: 'lactose',
+      match: ['lactose', 'intolerância à lactose', 'intolerancia a lactose'],
+      avoid: ['leite', 'queijo', 'iogurte', 'creme', 'manteiga', 'requeijão'],
+      tip: 'Opte por versões sem lactose ou bebidas vegetais.',
+      label: 'Lactose',
+    },
+    {
+      key: 'gluten',
+      match: ['glúten', 'gluten', 'celíaco', 'celiaco'],
+      avoid: ['trigo', 'pão', 'massa', 'macarrão', 'farinha', 'bolo', 'biscoito'],
+      tip: 'Priorize opções sem glúten (arroz, batata, mandioca, milho).',
+      label: 'Glúten',
+    },
+    {
+      key: 'diabetes',
+      match: ['diabetes', 'pré-diabetes', 'pre-diabetes'],
+      avoid: ['açúcar', 'doce', 'refrigerante', 'suco', 'pão branco', 'massa branca', 'bolacha'],
+      tip: 'Prefira carboidratos integrais e combine com fibras e proteína.',
+      label: 'Diabetes',
+    },
+    {
+      key: 'hipertensao',
+      match: ['hipertensão', 'hipertensao', 'pressão alta', 'pressao alta'],
+      avoid: ['sal', 'salgado', 'embutido', 'bacon', 'presunto', 'salsicha', 'linguiça'],
+      tip: 'Reduza ultraprocessados e temperos prontos; use ervas e limão.',
+      label: 'Pressão Alta',
+    },
+  ];
+
+  function buildMealHealthFeedback(day, conditions) {
+    if (!day || !conditions || conditions.length === 0) return [];
+    const normalized = conditions.map(c => c.toLowerCase());
+    const activeRules = healthRules.filter(rule =>
+      normalized.some(c => rule.match.some(m => c.includes(m)))
+    );
+    if (activeRules.length === 0) return [];
+
+    const mealTexts = [];
+    for (const meal of day.meals || []) {
+      if (meal.name) mealTexts.push(meal.name.toLowerCase());
+      for (const item of meal.items || []) {
+        if (item.name) mealTexts.push(item.name.toLowerCase());
+      }
+    }
+
+    const feedbacks = [];
+    for (const rule of activeRules) {
+      const found = rule.avoid.filter(a => mealTexts.some(t => t.includes(a)));
+      if (found.length > 0) {
+        feedbacks.push({
+          icon: '⚠️',
+          text: `${rule.label}: encontrei possíveis gatilhos (${found.slice(0, 4).join(', ')}).`,
+          cls: 'warn',
+        });
+      }
+      feedbacks.push({
+        icon: '💡',
+        text: `${rule.label}: ${rule.tip}`,
+        cls: 'info',
+      });
+    }
+    return feedbacks;
+  }
+
   function generateInsights(data) {
     if (!data) return [];
     const { kcal, ptn, carb, fat } = data.summary;
@@ -307,42 +419,84 @@
     }
 
     if (pctKcal >= 95 && pctKcal <= 110) {
-      insights.push({ icon: '🎯', text: `Meta calórica atingida! <strong>${kcal.toLocaleString('pt-BR')} kcal</strong> (${pctKcal}%). Consistência é o caminho.`, cls: 'good' });
+      insights.push({ icon: '🎯', text: `Meta calórica atingida! ${kcal.toLocaleString('pt-BR')} kcal (${pctKcal}%). Consistência é o caminho.`, cls: 'good' });
     } else if (pctKcal > 110) {
       const excess = kcal - goals.kcal;
-      insights.push({ icon: '🔥', text: `Superávit de <strong>${excess} kcal</strong> (${pctKcal}%).`, cls: excess > 500 ? 'warn' : 'info' });
+      insights.push({ icon: '🔥', text: `Superávit de ${excess} kcal (${pctKcal}%).`, cls: excess > 500 ? 'warn' : 'info' });
     } else if (pctKcal >= 70) {
-      insights.push({ icon: '📉', text: `Déficit de <strong>${goals.kcal - kcal} kcal</strong> (${pctKcal}%).`, cls: 'warn' });
+      insights.push({ icon: '📉', text: `Déficit de ${goals.kcal - kcal} kcal (${pctKcal}%).`, cls: 'warn' });
     } else if (kcal > 0) {
-      insights.push({ icon: '⚠️', text: `Apenas <strong>${pctKcal}%</strong> da meta calórica atingida.`, cls: 'bad' });
+      insights.push({ icon: '⚠️', text: `Apenas ${pctKcal}% da meta calórica atingida.`, cls: 'bad' });
     }
 
     if (pctPtn >= 90) {
-      insights.push({ icon: '💪', text: `Proteína excelente: <strong>${ptn}g</strong> (${pctPtn}%).`, cls: 'good' });
+      insights.push({ icon: '💪', text: `Proteína excelente: ${ptn}g (${pctPtn}%).`, cls: 'good' });
     } else if (pctPtn >= 60 && ptn > 0) {
-      insights.push({ icon: '🥩', text: `Proteína em <strong>${pctPtn}%</strong> (faltam ${goals.ptn - ptn}g).`, cls: 'warn' });
+      insights.push({ icon: '🥩', text: `Proteína em ${pctPtn}% (faltam ${goals.ptn - ptn}g).`, cls: 'warn' });
     }
 
     if (data.sleep.start) {
       const hours = data.sleep.hours;
       if (hours >= 7 && hours <= 9) {
-        insights.push({ icon: '😴', text: `Sono de <strong>${hours}h${data.sleep.minutes > 0 ? data.sleep.minutes + 'm' : ''}</strong> — faixa ideal!`, cls: 'good' });
+        insights.push({ icon: '😴', text: `Sono de ${hours}h${data.sleep.minutes > 0 ? data.sleep.minutes + 'm' : ''} — faixa ideal!`, cls: 'good' });
       } else if (hours < 7 && hours > 0) {
-        insights.push({ icon: '⏰', text: `Sono de <strong>${hours}h</strong> — abaixo do recomendado.`, cls: 'bad' });
+        insights.push({ icon: '⏰', text: `Sono de ${hours}h — abaixo do recomendado.`, cls: 'bad' });
       }
+    }
+
+    if (data.water_ml >= 2000) {
+      insights.push({ icon: '💧', text: `Hidratação excelente: ${Math.round(data.water_ml / 100) / 10}L hoje.`, cls: 'good' });
+    } else if (data.water_ml > 0 && data.water_ml < 1200) {
+      insights.push({ icon: '🥤', text: `Água baixa (${Math.round(data.water_ml / 100) / 10}L). Tente aumentar ao longo do dia.`, cls: 'warn' });
+    }
+
+    if (mealCount >= 4) {
+      insights.push({ icon: '🍽️', text: `Boa frequência alimentar: ${mealCount} refeições registradas.`, cls: 'good' });
+    } else if (mealCount > 0 && mealCount < 2) {
+      insights.push({ icon: '🍽️', text: `Poucas refeições hoje (${mealCount}). Considere um lanche equilibrado.`, cls: 'warn' });
     }
 
     const healthNotes = (data.notes || []).filter(n => n && n.includes('[SAÚDE]'));
     healthNotes.forEach(note => {
       const condition = note.replace('[SAÚDE] ', '').split('(')[0].trim();
-      insights.push({ icon: '🏥', text: `<strong>Alerta:</strong> ${condition}. Adapte sua alimentação.`, cls: 'warn' });
+      insights.push({ icon: '🏥', text: `Alerta: ${condition}. Adapte sua alimentação.`, cls: 'warn' });
     });
 
     return insights;
   }
 
+  let profileHealthConditions = $derived.by(() => normalizeHealthConditions(profile.data?.health_conditions || ''));
+  let noteHealthConditions = $derived.by(() => {
+    if (!currentDay?.notes) return [];
+    return currentDay.notes
+      .filter(n => n && n.includes('[SAÚDE]'))
+      .map(n => n.replace('[SAÚDE] ', '').trim());
+  });
+  let combinedHealthConditions = $derived.by(() => {
+    const merged = [...profileHealthConditions, ...noteHealthConditions];
+    return [...new Set(merged.filter(Boolean))];
+  });
+
   let insights = $derived(generateInsights(currentDay));
+  let mealFeedbacks = $derived.by(() => buildMealHealthFeedback(currentDay, combinedHealthConditions));
   let dates = $derived(Object.keys(allData).sort().reverse());
+
+  function getChallengeTarget(participation) {
+    return participation?.challenge_instances?.challenges?.target_value || 1;
+  }
+
+  function getChallengePct(participation) {
+    const progress = participation?.progress || 0;
+    const target = getChallengeTarget(participation);
+    return Math.min(100, Math.round((progress / target) * 100));
+  }
+
+  function getChallengeDaysLeft(participation) {
+    const endDate = participation?.challenge_instances?.end_date;
+    if (!endDate) return 0;
+    const end = new Date(endDate + 'T23:59:59').getTime();
+    return Math.max(0, Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24)));
+  }
 
   async function handleCreatineLog() {
     if (!auth.session?.user) return;
@@ -395,7 +549,6 @@
     {#if dates.length > 0}
       <div class="flex overflow-x-auto gap-3 pb-4 mb-5 scrollbar-hide">
         {#each dates as date (date)}
-          {@const dateObj = new Date(date + 'T12:00:00')}
           <button
             onclick={() => { selectedDate = date; suggestions = []; }}
             class="flex-shrink-0 px-5 py-3 rounded-2xl font-bold text-sm transition-all
@@ -403,8 +556,8 @@
                 ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-lg shadow-slate-900/30 dark:shadow-slate-700/30 -translate-y-0.5'
                 : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}"
           >
-            {dateObj.getDate().toString().padStart(2, '0')}
-            <span class="opacity-40 text-[10px] ml-1">{dateObj.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span>
+            {formatDateTabDay(date)}
+            <span class="opacity-40 text-[10px] ml-1">{formatDateTabMonth(date)}</span>
           </button>
         {/each}
       </div>
@@ -545,40 +698,31 @@
       </div>
 
       <!-- Creatine Tracker -->
-      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6">
-        <div class="flex items-center gap-3 mb-4">
-          <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Creatina</span>
-          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
-        </div>
-        <div class="flex items-center justify-between">
-          <div>
-            {#if currentDay?.creatine_taken_at}
-              <p class="text-lg font-black text-emerald-600 dark:text-emerald-400">Tomada!</p>
-              <p class="text-[10px] text-slate-500 dark:text-slate-400">Última vez: {new Date(currentDay.creatine_taken_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-            {:else}
-              <p class="text-lg font-black text-red-500 dark:text-red-400">Não tomada hoje</p>
-              <p class="text-[10px] text-slate-500 dark:text-slate-400">Registre sua dose diária</p>
-            {/if}
-          </div>
-          <button
-            onclick={handleCreatineLog}
-            class="px-5 py-2.5 rounded-2xl font-black text-sm transition-all
-              {currentDay?.creatine_taken_at ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 opacity-60 cursor-not-allowed' : 'bg-emerald-500 text-white hover:bg-emerald-600 active:scale-95'}"
-            disabled={currentDay?.creatine_taken_at}
-          >
-            {currentDay?.creatine_taken_at ? '✅ Registrado' : '💊 Tomar Creatina'}
-          </button>
-        </div>
-      </div>
-
-      <!-- Weekly Progress Chart -->
-      {#if Object.keys(allData).length > 1}
+      {#if dashboardPrefs.showCreatine}
         <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm p-6 mb-6">
           <div class="flex items-center gap-3 mb-4">
-            <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Progresso Semanal</span>
+            <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Creatina</span>
             <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
           </div>
-          <WeeklyChart data={allData} />
+          <div class="flex items-center justify-between">
+            <div>
+              {#if currentDay?.creatine_taken_at}
+                <p class="text-lg font-black text-emerald-600 dark:text-emerald-400">Tomada!</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">Última vez: {new Date(currentDay.creatine_taken_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+              {:else}
+                <p class="text-lg font-black text-red-500 dark:text-red-400">Não tomada hoje</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">Registre sua dose diária</p>
+              {/if}
+            </div>
+            <button
+              onclick={handleCreatineLog}
+              class="px-5 py-2.5 rounded-2xl font-black text-sm transition-all
+                {currentDay?.creatine_taken_at ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 opacity-60 cursor-not-allowed' : 'bg-emerald-500 text-white hover:bg-emerald-600 active:scale-95'}"
+              disabled={currentDay?.creatine_taken_at}
+            >
+              {currentDay?.creatine_taken_at ? '✅ Registrado' : '💊 Tomar Creatina'}
+            </button>
+          </div>
         </div>
       {/if}
 
@@ -599,16 +743,14 @@
       {:else}
         <div class="space-y-3 mb-6">
           {#each currentDay.meals as meal, idx (meal.id)}
-            {@const mealIcon = getMealTypeIcon(meal.name)}
-            {@const mealTitle = getMealTitle(meal)}
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm transition-colors">
               <!-- Header: type label + title + delete -->
               <div class="flex items-start justify-between gap-2 mb-2">
                 <div class="flex items-center gap-2 min-w-0 flex-1">
-                  <span class="text-lg flex-shrink-0">{mealIcon}</span>
+                  <span class="text-lg flex-shrink-0">{getMealTypeIcon(meal.name)}</span>
                   <div class="min-w-0">
                     <p class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{meal.name}</p>
-                    <p class="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{mealTitle}</p>
+                    <p class="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{getMealTitle(meal)}</p>
                   </div>
                 </div>
                 <button
@@ -633,7 +775,7 @@
                 <div class="border-t border-slate-100 dark:border-slate-700 pt-2 mt-2">
                   <p class="text-[8px] font-black text-slate-400 uppercase tracking-wider mb-1">Ingredientes</p>
                   <div class="flex flex-wrap gap-1">
-                    {#each meal.items as item}
+                    {#each meal.items as item, itemIndex (item.name + itemIndex)}
                       <span class="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-0.5 rounded-md max-w-full truncate">
                         {getItemIcon(item.name)} {item.name} · {item.kcal}kcal · {item.ptn}g P
                       </span>
@@ -646,20 +788,37 @@
         </div>
       {/if}
 
+      {#if mealFeedbacks.length > 0}
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Feedback das Refeições</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+        <div class="space-y-3 mb-6">
+          {#each mealFeedbacks as feedback, feedbackIndex (feedback.text + feedbackIndex)}
+            <div class="rounded-2xl px-4 py-3 text-sm border
+              {feedback.cls === 'warn' ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200' : ''}
+              {feedback.cls === 'info' ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200' : ''}"
+            >
+              <span class="mr-2">{feedback.icon}</span>{feedback.text}
+            </div>
+          {/each}
+        </div>
+      {/if}
+
       <!-- AI Insights -->
       <div class="flex items-center gap-3 mb-4">
         <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">AI Health Insights</span>
         <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
       </div>
       <div class="space-y-3 mb-6">
-        {#each insights as insight}
+        {#each insights as insight, insightIndex (insight.text + insightIndex)}
           <div class="rounded-2xl px-4 py-3 text-sm border
             {insight.cls === 'good' ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200' : ''}
             {insight.cls === 'warn' ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200' : ''}
             {insight.cls === 'bad' ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200' : ''}
             {insight.cls === 'info' ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200' : ''}"
           >
-            <span class="mr-2">{insight.icon}</span>{@html insight.text}
+            <span class="mr-2">{insight.icon}</span>{insight.text}
           </div>
         {:else}
           <div class="rounded-2xl px-4 py-3 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
@@ -705,7 +864,7 @@
 
       {#if suggestions.length > 0}
         <div class="space-y-4 mb-6">
-          {#each suggestions as s}
+          {#each suggestions as s, suggestionIndex (suggestionIndex)}
             <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 hover:shadow-md transition-all">
               <div class="flex items-center gap-3 mb-3">
                 <span class="text-2xl">{s.emoji || '🍽️'}</span>
@@ -720,7 +879,7 @@
                 <span class="text-[10px] font-bold px-2 py-1 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 rounded-lg">{s.total?.carb || 0}g C</span>
                 <span class="text-[10px] font-bold px-2 py-1 bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 rounded-lg">{s.total?.fat || 0}g F</span>
               </div>
-              {#each s.items || [] as item}
+              {#each s.items || [] as item, itemIndex (item.name + itemIndex)}
                 <div class="flex items-center gap-3 py-2 border-b border-slate-50 dark:border-slate-700 last:border-0">
                   <span class="text-lg">{getItemIcon(item.name)}</span>
                   <div class="flex-1">
@@ -758,20 +917,15 @@
       </div>
       <div class="space-y-3 mb-6">
         {#each social.activeChallenges.filter(p => p.challenge_instances?.status === 'active').slice(0, 3) as participation (participation.id)}
-          {@const instance = participation.challenge_instances}
-          {@const challenge = instance?.challenges}
-          {@const progress = participation.progress || 0}
-          {@const target = challenge?.target_value || 1}
-          {@const pct = Math.min(100, Math.round((progress / target) * 100))}
           <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex items-center gap-3">
-            <span class="text-2xl">{challenge?.icon || '🏆'}</span>
+            <span class="text-2xl">{participation.challenge_instances?.challenges?.icon || '🏆'}</span>
             <div class="flex-1">
-              <p class="text-xs font-black text-slate-800 dark:text-slate-100">{challenge?.title}</p>
+              <p class="text-xs font-black text-slate-800 dark:text-slate-100">{participation.challenge_instances?.challenges?.title}</p>
               <div class="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mt-1.5">
-                <div class="h-full bg-emerald-500 dark:bg-emerald-600 rounded-full transition-all" style="width: {pct}%"></div>
+                <div class="h-full bg-emerald-500 dark:bg-emerald-600 rounded-full transition-all" style="width: {getChallengePct(participation)}%"></div>
               </div>
             </div>
-            <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{pct}%</span>
+            <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{getChallengePct(participation)}%</span>
           </div>
         {/each}
       </div>

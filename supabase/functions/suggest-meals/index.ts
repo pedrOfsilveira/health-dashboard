@@ -14,6 +14,17 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function normalizeHealthConditions(input: string[] | string | undefined | null) {
+  if (!input) return [] as string[];
+  if (Array.isArray(input)) {
+    return input.map((c) => c.trim()).filter(Boolean);
+  }
+  return String(input)
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
+}
+
 async function callAI(systemPrompt: string, userPrompt: string) {
   const res = await fetch(AI_URL, {
     method: "POST",
@@ -70,6 +81,8 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     let userGoals = goals;
 
+    let profileConditions: string[] = [];
+
     if (authHeader) {
       try {
         const token = authHeader.replace("Bearer ", "");
@@ -91,12 +104,20 @@ serve(async (req) => {
               carb: profile.goal_carb || userGoals?.carb || 250,
               fat: profile.goal_fat || userGoals?.fat || 67,
             };
+            profileConditions = normalizeHealthConditions(profile.health_conditions || "");
           }
         }
       } catch (e) {
         console.warn("Could not load profile goals:", e);
       }
     }
+
+    const combinedConditions = Array.from(
+      new Set([
+        ...normalizeHealthConditions(healthConditions || []),
+        ...profileConditions,
+      ])
+    );
 
     // Build context about eating habits
     const foodFrequency: Record<string, number> = {};
@@ -150,6 +171,12 @@ REGRAS:
 - Cada sugestão deve ter nome, descrição curta motivacional, e itens com macros
 - Considere o horário atual para o tipo de refeição apropriado
 - Se o usuário tiver alguma condição de saúde, adapte as sugestões (alimentos que ajudem na recuperação, evite os que podem piorar)
+- Condições comuns e cuidados:
+  - Gastrite/Refluxo: evite frituras, café, álcool, pimenta, tomate e cítricos em excesso
+  - Lactose: evite leite, queijos e iogurtes comuns (prefira sem lactose)
+  - Glúten/Celíaco: evite trigo, pão, massas tradicionais e farinha de trigo
+  - Diabetes: reduza açúcar simples, bebidas açucaradas e porções grandes de carbo refinado
+  - Pressão alta: evite ultraprocessados e excesso de sal (prefira temperos naturais)
 
 FORMATO DE RESPOSTA:
 {
@@ -178,9 +205,9 @@ ${topFoods || "Sem histórico ainda - sugira opções populares brasileiras"}
 PADRÕES DE REFEIÇÃO:
 ${patternsText || "Sem padrões detectados ainda"}
 
-${healthConditions && healthConditions.length > 0 ? `
+${combinedConditions && combinedConditions.length > 0 ? `
 ⚠️ CONDIÇÕES DE SAÚDE ATIVAS:
-${healthConditions.join('\n')}
+${combinedConditions.join('\n')}
 ADAPTE as sugestões para ajudar na recuperação. Priorize alimentos anti-inflamatórios, ricos em vitaminas e minerais relevantes. Evite alimentos que possam agravar os sintomas.
 ` : ''}
 Sugira 2-3 opções de ${timeContext} que ajudem a atingir os macros restantes, priorizando os alimentos que o usuário já consome.`;

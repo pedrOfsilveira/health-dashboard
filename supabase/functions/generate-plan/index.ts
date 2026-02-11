@@ -14,6 +14,15 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function normalizeHealthConditions(input: string | string[] | undefined | null) {
+  if (!input) return [] as string[];
+  if (Array.isArray(input)) return input.map((c) => c.trim()).filter(Boolean);
+  return String(input)
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
+}
+
 async function callAI(systemPrompt: string, userPrompt: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90_000); // 90s timeout for AI call
@@ -176,6 +185,12 @@ REGRAS:
 - Ingredientes brasileiros baratos e acessíveis.
 - Ingredientes com peso em gramas ou medida caseira comum.
 - Refeições simples e rápidas de preparar.
+- Se houver condições de saúde, adapte as escolhas:
+  - Gastrite/Refluxo: evite frituras, café, álcool, pimenta, tomate e cítricos em excesso
+  - Lactose: evite leite, queijos e iogurtes comuns (prefira sem lactose)
+  - Glúten/Celíaco: evite trigo, pão, massas tradicionais e farinha de trigo
+  - Diabetes: reduza açúcar simples, bebidas açucaradas e porções grandes de carbo refinado
+  - Pressão alta: evite ultraprocessados e excesso de sal (prefira temperos naturais)
 
 FORMATO JSON:
 {
@@ -200,11 +215,13 @@ FORMATO JSON:
   "tip": "..."
 }`;
 
+    const healthList = normalizeHealthConditions(healthConditions);
+
     const userPrompt = `META DIÁRIA TOTAL: ${goals.kcal} kcal, ${goals.ptn}g proteína, ${goals.carb}g carbs, ${goals.fat}g gordura
 
 ${foodContext}
 ${preferences?.restrictions ? `RESTRIÇÕES: ${preferences.restrictions.join(", ")}` : ""}
-${healthConditions ? `SAÚDE: ${healthConditions}` : ""}
+  ${healthList.length > 0 ? `SAÚDE: ${healthList.join(", ")}` : ""}
 
 ATENÇÃO: Cada dia DEVE somar ~${goals.kcal} kcal. Distribua assim:
 - Café: ~${mealTargets[0].kcal} kcal
