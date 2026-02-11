@@ -107,22 +107,39 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  const data = event.data.json();
+  let data = {};
+  try {
+    data = event.data.json();
+  } catch (e) {
+    data = { title: 'Health Dashboard', body: event.data?.text() || 'Nova notificação' };
+  }
   console.log('Push received:', data);
 
   const title = data.title || 'Health Dashboard';
   const options = {
-    body: data.body,
+    body: data.body || '',
     icon: data.icon || '/icon-192.png',
-    badge: data.badge || '/icon-192.png',
-    data: data.data || {}, // Custom data to be used on notificationclick
+    badge: '/icon-192.png',
+    tag: data.tag || 'health-dashboard-' + Date.now(),
+    renotify: true,
+    requireInteraction: true,
+    vibrate: [200, 100, 200, 100, 200],
+    actions: [
+      { action: 'open', title: 'Abrir' },
+      { action: 'dismiss', title: 'Dispensar' },
+    ],
+    data: data.data || {},
+    silent: false,
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', (event) => {
-  event.notification.close(); // Close the notification
+  event.notification.close();
+
+  // If user clicked "dismiss", just close
+  if (event.action === 'dismiss') return;
 
   const clickData = event.notification.data;
   console.log('Notification clicked:', clickData);
@@ -131,13 +148,13 @@ self.addEventListener('notificationclick', (event) => {
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       // If there's an existing client, focus it
       for (const client of clientList) {
-        if (client.url === '/' && 'focus' in client) { // Assuming '/' is the main app URL
+        if ('focus' in client) {
           return client.focus();
         }
       }
       // Otherwise, open a new window
       if (clients.openWindow) {
-        return clients.openWindow(clickData.url || '/'); // Open the URL specified in data, or '/'
+        return clients.openWindow(clickData?.url || '/');
       }
       return null;
     })

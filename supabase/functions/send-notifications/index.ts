@@ -93,12 +93,15 @@ function isDue(preferredLocalTime: string, utcOffsetMinutes: number, windowMinut
   preferredUTC = ((preferredUTC % 1440) + 1440) % 1440;
   
   const now = nowUTCMinutes();
+  const rawNow = new Date();
   // Handle time wrapping around midnight
   let diff = now - preferredUTC;
   if (diff < -720) diff += 1440;  // wrap around
   if (diff > 720) diff -= 1440;
+  const result = diff >= 0 && diff < windowMinutes;
+  console.log(`[isDue] localTime=${preferredLocalTime} localMin=${preferredLocal} offset=${utcOffsetMinutes} preferredUTC=${preferredUTC} nowUTC=${now} rawNow=${rawNow.toISOString()} diff=${diff} window=${windowMinutes} result=${result}`);
   // The notification is due if we're between 0 and windowMinutes past the preferred time
-  return diff >= 0 && diff < windowMinutes;
+  return result;
 }
 
 /** Generate water reminder time slots between start and end times at the given interval */
@@ -123,7 +126,9 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    const today = new Date().toISOString().split("T")[0];
+    const rightNow = new Date();
+    const today = rightNow.toISOString().split("T")[0];
+    console.log(`[handler] START at ${rightNow.toISOString()} today=${today} nowUTCMinutes=${nowUTCMinutes()}`);
 
     // 1. Fetch all notification preferences
     const { data: allPrefs, error: prefsError } = await supabase
@@ -134,8 +139,10 @@ Deno.serve(async (req) => {
     if (prefsError) throw prefsError;
 
     if (!allPrefs || allPrefs.length === 0) {
+      console.log(`[handler] No users with notifications enabled`);
       return jsonResponse({ message: "No users with any notifications enabled." });
     }
+    console.log(`[handler] Found ${allPrefs.length} users with prefs`);
 
     // 2. Fetch all push subscriptions
     const userIds = allPrefs.map((p) => p.user_id);
@@ -152,6 +159,7 @@ Deno.serve(async (req) => {
       if (!subsByUser[sub.user_id]) subsByUser[sub.user_id] = [];
       subsByUser[sub.user_id].push(sub);
     }
+    console.log(`[handler] Subscriptions: ${Object.entries(subsByUser).map(([k, v]) => `${k.slice(0,8)}:${v.length}`).join(', ')}`);
 
     // 3. Fetch already-sent notifications for today to avoid duplicates
     const { data: sentToday, error: logError } = await supabase
@@ -179,6 +187,8 @@ Deno.serve(async (req) => {
     for (const d of daysToday || []) {
       if (d.creatine_taken_at) creatineTakenSet.add(d.user_id);
     }
+    console.log(`[handler] sentSet: [${[...sentSet].join(', ')}]`);
+    console.log(`[handler] creatineTaken: [${[...creatineTakenSet].map(u => u.slice(0,8)).join(', ')}]`);
 
     // 5. Build the list of notifications to send
     interface PendingNotification {
@@ -198,6 +208,7 @@ Deno.serve(async (req) => {
 
       // User's UTC offset (e.g. -180 for UTC-3). Default to 0 if not set.
       const utcOffset: number = prefs.utc_offset_minutes ?? 0;
+      console.log(`[handler] Processing user ${userId.slice(0,8)} offset=${utcOffset} hasSubs=${!!(subsByUser[userId]?.length)} creatine_enabled=${prefs.creatine_enabled} creatine_time=${prefs.creatine_time}`);
 
       // ─── Creatine ───
       if (prefs.creatine_enabled && prefs.creatine_time) {
@@ -208,7 +219,7 @@ Deno.serve(async (req) => {
             userId,
             type: "creatine",
             slot,
-            payload: JSON.stringify({ ...PAYLOADS.creatine, data: { url: "/" } }),
+            payload: JSON.stringify({ ...PAYLOADS.creatine, tag: "creatine", data: { url: "/" } }),
           });
         }
       }
@@ -227,7 +238,7 @@ Deno.serve(async (req) => {
               userId,
               type: "water",
               slot,
-              payload: JSON.stringify({ ...PAYLOADS.water, data: { url: "/" } }),
+              payload: JSON.stringify({ ...PAYLOADS.water, tag: `water-${slot}`, data: { url: "/" } }),
             });
           }
         }
@@ -252,7 +263,7 @@ Deno.serve(async (req) => {
                 userId,
                 type: meal.type,
                 slot,
-                payload: JSON.stringify({ ...payloadData, data: { url: "/" } }),
+                payload: JSON.stringify({ ...payloadData, tag: meal.type, data: { url: "/" } }),
               });
             }
           }
@@ -261,8 +272,10 @@ Deno.serve(async (req) => {
     }
 
     if (pending.length === 0) {
+      console.log(`[handler] No pending notifications. Checked ${allPrefs.length} users.`);
       return jsonResponse({ message: "No notifications due at this time.", checked: allPrefs.length });
     }
+    console.log(`[handler] ${pending.length} pending notifications to send`);
 
     // 6. Send all pending notifications
     let sentCount = 0;
