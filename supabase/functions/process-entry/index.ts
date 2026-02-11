@@ -37,10 +37,16 @@ Exemplos de refeições:
 - "lanchei uma maçã e iogurte" -> {"type": "meal", "name": "Lanche", "items": [{"name": "Maçã", "kcal": 52, "ptn": 0, "carb": 14, "fat": 0}, {"name": "Iogurte", "kcal": 61, "ptn": 3, "carb": 4, "fat": 3}]}
 - "comi 2 fatias de pizza" -> {"type": "meal", "name": "Refeição", "items": [{"name": "2x Fatia de pizza", "kcal": 540, "ptn": 24, "carb": 66, "fat": 20}]}
 
-Exemplos de água:
+Exemplos de água (SOMENTE água pura, nunca leite, suco, refrigerante ou outras bebidas):
 - "bebi 500ml de água" -> {"type": "water", "amount_ml": 500}
 - "tomei 2 copos d'água" -> {"type": "water", "amount_ml": 500}
 - "hidratei com 1L" -> {"type": "water", "amount_ml": 1000}
+
+Exemplos de bebidas que NÃO são água (devem ser tratadas como refeição/alimento):
+- "tomei 3 litros de leite no café da manhã" -> {"type": "meal", "name": "Café da Manhã", "items": [{"name": "3L Leite integral", "kcal": 1950, "ptn": 99, "carb": 147, "fat": 99}]}
+- "bebi um copo de leite" -> {"type": "meal", "name": "Refeição", "items": [{"name": "Copo de leite (250ml)", "kcal": 163, "ptn": 8, "carb": 12, "fat": 8}]}
+- "tomei suco de laranja" -> {"type": "meal", "name": "Refeição", "items": [{"name": "Suco de laranja (200ml)", "kcal": 90, "ptn": 1, "carb": 21, "fat": 0}]}
+- "bebi refrigerante" -> {"type": "meal", "name": "Refeição", "items": [{"name": "Refrigerante (350ml)", "kcal": 147, "ptn": 0, "carb": 37, "fat": 0}]}
 
 Exemplos de sono:
 - "dormi das 22h às 6h, bem" -> {"type": "sleep", "start": "22:00", "end": "06:00", "quality": "BOA"}
@@ -61,7 +67,7 @@ Exemplos de notas:
 Se for refeição/comida, retorne:
 {"type": "meal", "name": "Nome da Refeição", "items": [{"name": "item", "kcal": 100, "ptn": 10, "carb": 20, "fat": 5}]}
 
-Se for água/hidratação (bebi água, tomei água, 500ml de água, etc), retorne:
+Se for água/hidratação (SOMENTE água pura, não leite, suco, refrigerante ou outras bebidas), retorne:
 {"type": "water", "amount_ml": 500}
 
 Se for dado de sono, retorne:
@@ -77,7 +83,8 @@ Regras importantes:
 - Identifique refeições por verbos como: almocei, jantei, comi, lanchei, café da manhã, merendei, ceei, etc.
 - Identifique sono por palavras como: dormi, sono, durmi, etc.
 - Identifique saúde por sintomas: dor, febre, gripe, resfriado, mal-estar, remédio, medicamento, etc.
-- Identifique água por: água, hidratei, bebi, tomei, ml, copo, litro, etc.
+- Identifique água APENAS quando for água pura/natural. Nunca classifique como água: leite, suco, refrigerante, café, chá, ou qualquer bebida que não seja água.
+- Leite, sucos, refrigerantes e outras bebidas devem SEMPRE ser classificadas como refeições (type: "meal") com seus respectivos valores nutricionais.
 - REGRA CRÍTICA: Quando houver quantidade numérica ("2 sobrecoxas", "3 ovos", "4 colheres"), use o formato "Nx Item" no nome E multiplique todos os macros pela quantidade.
 - Estime calorias e macros com base nas referências nutricionais acima e tabela TACO/IBGE. Erre para cima, nunca para baixo — é melhor superestimar levemente do que subestimar.
 - Sobrecoxas, coxas, asas de frango são cortes mais calóricos que peito. Use valores realistas.
