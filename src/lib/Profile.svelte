@@ -118,6 +118,10 @@
       await upsertNotificationPreferences({
         user_id: auth.session.user.id,
         ...notif,
+        // Send the user's UTC offset so the server can compare times correctly.
+        // getTimezoneOffset() returns minutes AHEAD of UTC (e.g. UTC-3 → 180),
+        // we negate it so UTC-3 is stored as -180.
+        utc_offset_minutes: -(new Date().getTimezoneOffset()),
       });
     } catch (e) {
       alert('Erro ao salvar notificações: ' + e.message);

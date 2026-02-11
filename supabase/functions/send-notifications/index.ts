@@ -37,32 +37,32 @@ const PAYLOADS: Record<string, { title: string; body: string; icon?: string }> =
   water: {
     title: "💧 Hora de beber água!",
     body: "Mantenha-se hidratado! Beba um copo de água agora.",
-    icon: "/public/icon-192.png",
+    icon: "/icon-192.png",
   },
   creatine: {
     title: "💊 Lembrete de Creatina",
     body: "Não se esqueça de tomar sua creatina hoje!",
-    icon: "/public/icon-192.png",
+    icon: "/icon-192.png",
   },
   meal_breakfast: {
     title: "☕ Hora do café da manhã!",
     body: "Não esqueça de registrar seu café da manhã.",
-    icon: "/public/icon-192.png",
+    icon: "/icon-192.png",
   },
   meal_lunch: {
     title: "🍽️ Hora do almoço!",
     body: "Não esqueça de registrar seu almoço.",
-    icon: "/public/icon-192.png",
+    icon: "/icon-192.png",
   },
   meal_snack: {
     title: "🍎 Hora do lanche!",
     body: "Não esqueça de registrar seu lanche da tarde.",
-    icon: "/public/icon-192.png",
+    icon: "/icon-192.png",
   },
   meal_dinner: {
     title: "🌙 Hora do jantar!",
     body: "Não esqueça de registrar seu jantar.",
-    icon: "/public/icon-192.png",
+    icon: "/icon-192.png",
   },
 };
 
@@ -80,12 +80,21 @@ function nowUTCMinutes(): number {
   return now.getUTCHours() * 60 + now.getUTCMinutes();
 }
 
-/** Check if a preferred time is "due" — within WINDOW_MINUTES of the current UTC time */
-function isDue(preferredTime: string, windowMinutes = 7): boolean {
-  const preferred = timeToMinutes(preferredTime);
+/**
+ * Check if a preferred LOCAL time is "due" — within WINDOW_MINUTES of the current UTC time.
+ * utcOffsetMinutes is the user's offset from UTC in minutes (e.g. UTC-3 = -180).
+ * We convert the local preferred time to UTC by subtracting the offset.
+ */
+function isDue(preferredLocalTime: string, utcOffsetMinutes: number, windowMinutes = 7): boolean {
+  const preferredLocal = timeToMinutes(preferredLocalTime);
+  // Convert local time to UTC: UTC = local - offset
+  let preferredUTC = preferredLocal - utcOffsetMinutes;
+  // Normalize to 0..1439 range
+  preferredUTC = ((preferredUTC % 1440) + 1440) % 1440;
+  
   const now = nowUTCMinutes();
   // Handle time wrapping around midnight
-  let diff = now - preferred;
+  let diff = now - preferredUTC;
   if (diff < -720) diff += 1440;  // wrap around
   if (diff > 720) diff -= 1440;
   // The notification is due if we're between 0 and windowMinutes past the preferred time
@@ -187,11 +196,14 @@ Deno.serve(async (req) => {
       // Skip users without push subscriptions
       if (!subsByUser[userId] || subsByUser[userId].length === 0) continue;
 
+      // User's UTC offset (e.g. -180 for UTC-3). Default to 0 if not set.
+      const utcOffset: number = prefs.utc_offset_minutes ?? 0;
+
       // ─── Creatine ───
       if (prefs.creatine_enabled && prefs.creatine_time) {
         const slot = prefs.creatine_time.slice(0, 5); // "HH:MM"
         const key = `${userId}|creatine|${slot}`;
-        if (!sentSet.has(key) && !creatineTakenSet.has(userId) && isDue(prefs.creatine_time)) {
+        if (!sentSet.has(key) && !creatineTakenSet.has(userId) && isDue(prefs.creatine_time, utcOffset)) {
           pending.push({
             userId,
             type: "creatine",
@@ -210,7 +222,7 @@ Deno.serve(async (req) => {
         );
         for (const slot of waterSlots) {
           const key = `${userId}|water|${slot}`;
-          if (!sentSet.has(key) && isDue(slot)) {
+          if (!sentSet.has(key) && isDue(slot, utcOffset)) {
             pending.push({
               userId,
               type: "water",
@@ -233,7 +245,7 @@ Deno.serve(async (req) => {
           if (!meal.time) continue;
           const slot = meal.time.slice(0, 5);
           const key = `${userId}|${meal.type}|${slot}`;
-          if (!sentSet.has(key) && isDue(meal.time)) {
+          if (!sentSet.has(key) && isDue(meal.time, utcOffset)) {
             const payloadData = PAYLOADS[meal.type];
             if (payloadData) {
               pending.push({
