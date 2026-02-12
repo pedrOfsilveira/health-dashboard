@@ -167,11 +167,35 @@ REGRAS:
 - Sugira 2-3 opções de refeição realistas e práticas
 - Priorize alimentos que o usuário já come frequentemente (familiaridade)
 - Ajuste as porções para se aproximar dos macros restantes
-- Use tabela TACO/IBGE para estimativas
+- Use tabela TACO/IBGE para estimativas — valores CONSERVADORES e realistas. Quando possível, consulte também rótulos de marcas e bases oficiais (ex.: USDA, tabelas do fabricante) e prefira essas fontes ao estimar.
 - Cada sugestão deve ter nome, descrição curta motivacional, e itens com macros
 - Considere o horário atual para o tipo de refeição apropriado
-- Se o usuário tiver alguma condição de saúde, adapte as sugestões (alimentos que ajudem na recuperação, evite os que podem piorar)
-- Condições comuns e cuidados:
+- Se o usuário tiver alguma condição de saúde, adapte as sugestões
+
+REFERÊNCIAS NUTRICIONAIS (use como base — NUNCA superestime):
+- Peito de frango grelhado (100g): ~159 kcal, 30g ptn
+- Sobrecoxa de frango assada (~80g sem osso): ~170 kcal, 18g ptn
+- Coxa de frango assada (~50g sem osso): ~110 kcal, 12g ptn
+- Ovo cozido (1 unid): ~72 kcal, 6g ptn
+- Bife bovino grelhado (100g): ~190 kcal, 27g ptn
+- Colher grande arroz (~40g cozido): ~51 kcal, 1g ptn, 11g carb
+- Colher grande feijão (~60g): ~46 kcal, 3g ptn, 8g carb
+- Leite integral (250ml): ~146 kcal, 8g ptn
+- Iogurte natural (170g): ~92 kcal, 6g ptn
+- Whey protein (1 scoop ~30g): ~120 kcal, 24g ptn
+- Pão francês (50g): ~135 kcal, 4g ptn, 26g carb
+- Banana (100g): ~89 kcal, 1g ptn, 23g carb
+- Queijo mussarela (1 fatia ~20g): ~56 kcal, 4g ptn
+- Atum em lata (120g drenado): ~130 kcal, 26g ptn
+- Batata cozida (100g): ~52 kcal, 1g ptn, 12g carb
+
+ATENÇÃO: Proteína é frequentemente superestimada. Lembre-se que:
+- 1 ovo = apenas 6g de proteína
+- Arroz/feijão têm pouquíssima proteína (1-3g por colher)
+- Frutas, pão e vegetais têm proteína negligível (0-2g)
+- Sobrecoxa/coxa tem MENOS proteína que peito de frango
+
+Condições de saúde e cuidados:
   - Gastrite/Refluxo: evite frituras, café, álcool, pimenta, tomate e cítricos em excesso
   - Lactose: evite leite, queijos e iogurtes comuns (prefira sem lactose)
   - Glúten/Celíaco: evite trigo, pão, massas tradicionais e farinha de trigo

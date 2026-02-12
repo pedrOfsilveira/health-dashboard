@@ -172,11 +172,39 @@ Deno.serve(async (req) => {
 METAS DIÁRIAS (Aproximadas, distribua bem pelas 4 refeições):
 TOTAL DIÁRIO ESPERADO: ~${goals.kcal} kcal | ~${goals.ptn}g ptn | ~${goals.carb}g carb | ~${goals.fat}g fat
 
+REFERÊNCIAS NUTRICIONAIS OBRIGATÓRIAS (baseadas na tabela TACO/IBGE — use como base). Quando disponível, consulte também rótulos de marcas e bases oficiais (ex.: USDA, rótulos de fabricantes) e priorize essas fontes ao estimar:
+- Peito de frango grelhado (100g): ~159 kcal, 30g ptn, 0g carb, 3g fat
+- Sobrecoxa de frango assada (~80g sem osso): ~170 kcal, 18g ptn, 0g carb, 10g fat
+- Coxa de frango assada (~50g sem osso): ~110 kcal, 12g ptn, 0g carb, 7g fat
+- Ovo cozido (1 unid ~50g): ~72 kcal, 6g ptn, 0.5g carb, 5g fat
+- Bife bovino grelhado (100g): ~190 kcal, 27g ptn, 0g carb, 9g fat
+- Carne moída refogada (100g): ~212 kcal, 22g ptn, 0g carb, 14g fat
+- Atum em lata (120g drenado): ~130 kcal, 26g ptn, 0g carb, 2g fat
+- Colher grande arroz (~40g cozido): ~51 kcal, 1g ptn, 11g carb, 0g fat
+- Colher grande feijão (~60g): ~46 kcal, 3g ptn, 8g carb, 0.4g fat
+- Pão francês (50g): ~135 kcal, 4g ptn, 26g carb, 1g fat
+- Batata cozida (100g): ~52 kcal, 1g ptn, 12g carb, 0g fat
+- Macarrão cozido (100g): ~102 kcal, 3g ptn, 20g carb, 0.5g fat
+- Banana (100g): ~89 kcal, 1g ptn, 23g carb, 0g fat
+- Leite integral (250ml): ~146 kcal, 8g ptn, 11g carb, 8g fat
+- Iogurte natural (170g): ~92 kcal, 6g ptn, 7g carb, 4g fat
+- Whey protein (1 scoop 30g): ~120 kcal, 24g ptn, 2g carb, 1g fat
+- Queijo mussarela (1 fatia 20g): ~56 kcal, 4g ptn, 0.5g carb, 4g fat
+- Azeite de oliva (1 colher sopa 13ml): ~117 kcal, 0g ptn, 0g carb, 13g fat
+
+ATENÇÃO — PROTEÍNA (macro mais frequentemente superestimado):
+- 1 ovo = apenas 6g de proteína (NÃO 12-13g)
+- Arroz e feijão = 1-3g de proteína por colher (proteína BAIXA)
+- Frutas, pão, vegetais = 0-2g de proteína (negligível)
+- Sobrecoxa/coxa tem MENOS proteína que peito de frango
+- Para atingir metas altas de proteína, é necessário incluir fontes concentradas (carnes, whey, atum)
+
 PROCESSO OBRIGATÓRIO:
 1. Gere um plano para 7 dias, com 4 refeições por dia (café, almoço, lanche, jantar).
 2. Para cada refeição, crie um título, uma breve descrição e uma lista de ingredientes com quantidades e unidades.
 3. Certifique-se de que a soma total diária de kcal e macros esteja *próxima* das metas, permitindo uma flexibilidade de até 10% para agilizar a geração.
-4. Para a lista de compras, agrupe itens similares (ex: "ovo" e "ovos" deve ser "ovos"), deduplique, e categorize os itens (ex: "Carnes", "Vegetais").
+4. Use as referências nutricionais acima para calcular. Na dúvida, prefira valores CONSERVADORES.
+5. Para a lista de compras, agrupe itens similares (ex: "ovo" e "ovos" deve ser "ovos"), deduplique, e categorize os itens (ex: "Carnes", "Vegetais").
 
 REGRAS:
 - **Prioridade MÁXIMA:** Gerar o JSON rapidamente. Não se preocupe com cálculos exatos; aproximações são aceitáveis para evitar timeout.
