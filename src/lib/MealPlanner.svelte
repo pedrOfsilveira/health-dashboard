@@ -378,7 +378,7 @@
     <div class="flex gap-3 mb-4">
       <button
         onclick={() => showShopping = !showShopping}
-        class="flex-1 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-bold text-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+        class="flex-1 py-3 px-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-bold text-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
       >
         🛒 {showShopping ? 'Esconder' : 'Lista de Compras'}
         {#if totalItems() > 0}
