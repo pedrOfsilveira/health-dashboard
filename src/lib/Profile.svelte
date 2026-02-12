@@ -9,6 +9,7 @@
   let editing = $state(false);
   let saving = $state(false);
   let exporting = $state(false);
+  let exportPeriod = $state(/** @type {'week'|'month'|'all'} */ ('month'));
   let form = $state(/** @type {any} */ ({}));
 
   // Notification preferences
@@ -763,23 +764,50 @@
       <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Exportar Dados</span>
       <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
     </div>
-    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Baixe seus registros de nutrição, sono e saúde.</p>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Baixe seus registros de nutrição, sono e saúde para enviar ao seu nutricionista.</p>
+
+    <!-- Period selector -->
+    <div class="flex gap-2 mb-4">
+      <button
+        onclick={() => exportPeriod = 'week'}
+        class="flex-1 py-2 rounded-xl text-xs font-bold transition-colors border {exportPeriod === 'week' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-800' : 'bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600'}"
+      >
+        📅 Semanal
+      </button>
+      <button
+        onclick={() => exportPeriod = 'month'}
+        class="flex-1 py-2 rounded-xl text-xs font-bold transition-colors border {exportPeriod === 'month' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-800' : 'bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600'}"
+      >
+        🗓️ Mensal
+      </button>
+      <button
+        onclick={() => exportPeriod = 'all'}
+        class="flex-1 py-2 rounded-xl text-xs font-bold transition-colors border {exportPeriod === 'all' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-800' : 'bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600'}"
+      >
+        📋 Tudo
+      </button>
+    </div>
+
+    <!-- Export buttons -->
     <div class="flex gap-3">
       <button
-        onclick={async () => { exporting = true; try { await exportCSV(auth.session?.user?.id); } finally { exporting = false; } }}
+        onclick={async () => { exporting = true; try { await exportCSV(auth.session?.user?.id, { name: profile.data?.name, ...goals }, exportPeriod); } finally { exporting = false; } }}
         disabled={exporting}
         class="flex-1 py-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-2xl font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-200 dark:border-emerald-900/50 disabled:opacity-50"
       >
         📄 CSV
       </button>
       <button
-        onclick={async () => { exporting = true; try { await exportPDF(auth.session?.user?.id, { name: profile.data?.name, ...goals }); } finally { exporting = false; } }}
+        onclick={async () => { exporting = true; try { await exportPDF(auth.session?.user?.id, { name: profile.data?.name, ...goals }, exportPeriod); } finally { exporting = false; } }}
         disabled={exporting}
         class="flex-1 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-2xl font-bold text-sm hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors border border-blue-200 dark:border-blue-900/50 disabled:opacity-50"
       >
         📑 PDF
       </button>
     </div>
+    {#if exporting}
+      <p class="text-xs text-center text-slate-400 dark:text-slate-500 mt-3 animate-pulse">Gerando relatório…</p>
+    {/if}
   </div>
 
   <div class="flex items-center gap-3 mb-4">
